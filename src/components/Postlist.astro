@@ -1,0 +1,63 @@
+---
+import type { Category } from '@data/category';
+import { categories } from '@data/category';
+import { getFormattedDate } from '@utils/all';
+import { Picture } from 'astro:assets';
+import cx from 'clsx';
+import Label from './ui/label.astro';
+const { post, preloadImage } = Astro.props;
+const category = categories.find((item) => item.slug === post.data.category) as Category;
+---
+
+<div class='cursor-pointer group'>
+  <div
+    class={cx(
+      'relative overflow-hidden transition-all shadow-sm bg-gray-100 rounded-md dark:bg-gray-800 hover:scale-105 aspect-[3/2]'
+    )}
+  >
+    <a href={'/posts/' + post.slug}>
+      {
+        post.data.image ? (
+          <Picture
+            src={post.data.image}
+            widths={[800]}
+            sizes='(max-width: 640px) 90vw, 480px'
+            alt='Thumbnail'
+            inferSize
+            decoding={'async'}
+            loading={preloadImage ? 'eager' : 'lazy'}
+            class={cx('w-full rounded-md object-cover aspect-[3/2]')}
+          />
+        ) : (
+          <span class='absolute w-16 h-16 text-gray-200 -translate-x-1/2 -translate-y-1/2 top-1/2 left-1/2'>
+            no image
+          </span>
+        )
+      }
+    </a>
+  </div>
+  <a href={'/category/' + category.slug}>
+    <Label theme={category.color}>{category.title}</Label>
+  </a>
+  <h2
+    class='mt-2 text-lg line-clamp-2 overflow-hidden font-blod tracking-normal text-brand-primary dark:text-white'
+  >
+    <a href={'/posts/' + post.slug}>
+      <span
+        class='bg-gradient-to-r from-green-200 to-green-100 dark:from-purple-800 dark:to-purple-900 bg-[length:0px_10px] bg-left-bottom bg-no-repeat transition-[background-size] duration-500 hover:bg-[length:100%_3px] group-hover:bg-[length:100%_10px]'
+      >
+        {post.data.title}
+      </span>
+    </a>
+  </h2>
+
+  <div class='flex items-center mt-3 space-x-3 text-gray-500 dark:text-gray-400'>
+    <div class='flex items-center gap-3'>
+      <span class='text-sm'>{post.data.author}</span>
+    </div>
+    <span class='text-xl text-gray-300 dark:text-gray-600'> &bull;</span>
+    <time class='text-sm' datetime={post.data.publishDate}>
+      {getFormattedDate(post.data.publishDate)}
+    </time>
+  </div>
+</div>
