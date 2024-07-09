@@ -1,0 +1,80 @@
+---
+title: 'Git Upstream Problem'
+desc: 'Git Upstream Problem'
+publishDate: '2024-07-09 22:00:00'
+image: 'https://cdn.laughingzhu.cn/DevNow/01909772-92f5-7b9e-be0f-398bd2dfffd3.png'
+category: 'blog'
+author: 'LaughingZhu'
+tags: [Blog, Git]
+---
+
+## 1.前言
+
+最近开源了一个项目 [DevNow](https://github.com/LaughingZhu/DevNow),直接通过Vercel 部署，然后最近一直在迭代和更新相关的博客文章。
+
+这里遇到一个问题，由于现在是基于开源项目代码直接部署的，所以我的博客文章都放到了 [DevNow](https://github.com/LaughingZhu/DevNow)/src/content 的 `docs` 目录下，然后通过 `git push` 到 GitHub 上。这个就会导致fork了这个开源项目的人会收到 sync 提示，虽然文章没啥卵用，但是作为自己的博客，感觉没必要同步给fork的人。
+
+## 2.解决方案
+
+### 2.1 从开源项目fork一个新项目
+
+我决定从开源项目 fork 一个新的项目，然后把开源项目的 `docs` 目录下的文件复制到新的项目的 `docs` 目录下，以后文章就在这个新的项目里更新就好，开源项目作为功能性的继续更新，这样就不会相互影响了，开源项目每次更新了新功能，我fork的项目直接 sync 一下就好了。
+
+> 但是遇到一个新的问题，目前感觉只是针对我这样的场景。GitHub同一个账户不能fork自己的，如果我切换到另一个组织账号去fork的话，在自己的服务器上部署也没有问题，但是我这里用的是 Vercel 部署，Vervel 部署 组织项目的话要切换成 Pro 版才能使用，所以到这里就放弃这种方案了。
+
+### 2.2 配置 Git Upstream
+
+我自己起了一个新的项目，把开源项目中的代码都放了进来，然后通过 Vercel 部署就可以了，把之前的配置都在 Vercel 上配置好，然后域名重定向过来，到这里，新项目就和开源项目区分开了，文章直接在新项目上更新就好。
+
+接下来的问题是如何同步开源项目的新代码带我的新项目中。
+
+当然可以。如果你已经有一个新仓库，想要同步一个开源项目但不是通过 Fork 进行的，你可以按照以下步骤操作来将开源项目的内容同步到你的仓库：
+
+1. **添加开源项目为远程仓库**：使用以下命令添加开源项目作为一个名为 `upstream` 的远程仓库：
+
+```bash
+git remote add upstream https://github.com/original_author/project_name.git
+```
+
+将这里的 `original_author` 和 `project_name` 替换为开源项目的原作者名和仓库名。
+
+2. **获取并合并开源项目的内容**：从 `upstream` 拉取开源项目的内容，然后合并到你的主分支：
+
+```bash
+git fetch upstream
+git merge upstream/main
+```
+
+请将 `upstream/main` 替换为实际的开源项目分支名。有时在某些项目里可能是 `upstream/master`。
+
+3. **推送更新至自己的远程仓库**：最后，将本地仓库中的更新推送到你的远程仓库：
+
+```bash
+git push origin main
+```
+
+确保 `origin` 是你自己的仓库，`main` 是你要推送到的分支名。
+
+这样一来，你就可以同步未经 Fork 的开源项目的内容到自己的仓库了。继续在后续开发过程中同步更新，请重复步骤 2 和 3。
+
+这里如果遇到下边的错误的：
+
+![错误](https://cdn.laughingzhu.cn/DevNow/01909783-451e-7dcf-9f23-725f437770dd.png)
+
+这个错误表示 Git 无法自动合并两个没有共同祖先的分支。在你的情况下，原因可能是你的新仓库初始时是空的，因此与你想要合并的开源项目没有共享的提交历史。在这种情况下，Git 不会自动合并这两个仓库，因为它无法确定如何处理两个版本历史完全不同的代码库。
+
+你可以通过使用 `--allow-unrelated-histories` 选项来告诉 Git 合并这两个没有任何关联的历史：
+
+```bash
+git merge upstream/main --allow-unrelated-histories
+```
+
+这个选项会让 Git 生成一个新的提交，把两个仓库的内容都包含进来。这个操作可能会产生冲突，需要手动解决。解决冲突后，使用 `git add` 把解决冲突后的文件添加到暂存区，接着使用 `git commit` 提交即可。
+
+再次推送到自己的远程仓库：
+
+```bash
+git push origin main
+```
+
+> 请注意，`--allow-unrelated-histories` 应该谨慎使用，因为它忽略了 Git 的安全预防机制，可能会导致不期望的合并结果。在常规操作中，如果遇到这种错误，往往意味着你可能正在误操作，比如尝试合并两个根本不相关的项目。而在你的情况下，因为你知道自己在做什么，所以可以使用这个选项。

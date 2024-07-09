@@ -1,0 +1,215 @@
+---
+title: 'React Renderer 工作阶段（Commit）'
+desc: 'DevNow：React Renderer 工作阶段（Commit）'
+publishDate: '2024-07-09 22:00:00'
+image: 'https://cdn.laughingzhu.cn/DevNow/361507e3-ff9d-4b8c-a224-435346f08734.png'
+category: 'blog'
+author: 'LaughingZhu'
+tags: [Blog, React]
+---
+
+## 前言
+
+React 的三个主要工作流程：
+
+- Reconciler（协调器）—— 负责找出变化的组件（render 阶段）
+- Renderer（渲染器）—— 负责将变化的组件渲染到页面上 （commit 阶段）
+- Scheduler（调度器）—— 调度任务的优先级，高优任务优先进入 **Reconciler**
+
+Renderer 工作的阶段被称为 commit 阶段。在 commit 阶段，会将各种副作用（ flags 表示）commit （提交）到宿主环境UI中。最长用的 Renderer -- ReactDOM。
+
+> render （Reconciler 工作阶段） 阶段流程可能被打断，而 commit （ReactDOM 工作阶段） 阶段一但开始就会同步执行直到完成。
+
+Commit 整个阶段主要可以分为是三个子阶段：
+
+- BeforeMutation 阶段
+- Mutation 阶段
+- Layout 阶段
+
+![commit 阶段](https://cdn.laughingzhu.cn/DevNow/01909767-1afd-7806-9b6b-9832a26aac9c.png)
+
+## 1.流程概览
+
+commit 阶段开始于 commitRoot 方法的调用
+
+```js
+commitRoot(root);
+```
+
+其中：
+
+- root 代表”本次更新所属的 `FiberRootNode` “。
+- `root.finishedWork` 代表 `Wip HostRootFiber`，即”render 阶段构建的 `Wip FiberTree` `的HostRootFiber` “。
+
+在三个自己断执行之前，需要判断本次更新是否涉及”与三个子阶段相关的副作用“，逻辑如下：
+
+```js
+// Wip HostRootNode的子孙元素存在的副作用
+const subtreeHasEffects =
+  (finishedWork.subtreeFlags & (BeforeMutationMask | MutationMask | LayoutMask | PassiveMask)) !==
+  NoFlags;
+
+// Wip HostRootNode本身存在的副作用
+const rootHasEffects =
+  (finishedWork.flags & (BeforeMutationMask | MutationMask | LayoutMask | PassiveMask)) !== NoFlags;
+
+if (subtreeHasEffects || rootHasEffects) {
+  // ... 当`Wip HostRootNode`或其子孙存在副作用flags时, 进入三个子阶段
+} else {
+  // ... 本次更新没有三个子阶段的副作用
+}
+```
+
+每个mask由与该阶段相关的副作用flags组合而成, 如
+
+- `BeforeMutationMask`由update和snapshot组成，代表 ”BeforeMutation“ 阶段与这两个 flags 有关（由于SnapShot 是 ”ClassComponent 存在更新，且定义了 getSnapshotBeforeUpdate 方法“后才会设置的 flags，因此可以判断 BeforeMutation 阶段会执行 getSnapshotBeforeUpdate 犯法）。
+- `MutationMask`包含的大多是与ui相关的副作用, 所以ui操作发生 `Mutation` 阶段。当”Mutation“阶段完成时, 根据双缓存机制, 执行 `root.current = finishedWork` 完成`current fiber tree`的切换。
+- 当`Layout`阶段完成(或跳过)时, 又会开启新的调度：
+  1. commit阶段触发了新的更新, 比如在`useLayoutEffect`回调中触发更新;
+  2. 有遗留的更新未处理.
+
+### 1.1 子阶段的执行流程
+
+commit 阶段的三个子阶段会完成 ”自上而下“ 的 `subtreeFlags` 消费过程。即 `commitXXXEffects/_begin/_complete` 三段式。子阶段的遍历会以 `DFS` 的顺序，从 HostRootFiber 开始向下遍历到第一个满足条件的 fiberNode，在从该 fiberNode 向上遍历直到 HostRootFiber为止，在遍历过程中会执行 ”flags“ 对应操作。
+
+## 2.错误处理
+
+![错误处理](https://cdn.laughingzhu.cn/DevNow/01909767-bbbb-77fb-9385-1e0269e75220.png)
+
+React 提供了两个与 ”错误处理“ 相关的 API。
+
+- getDerivedStateFromError ： 静态方法，当错误发生后，提供一个机会渲染 `fallback UI`、
+- componentDidCatch：组件的实例方法，当错误发生后，提供一个机会记录错误信息。
+
+使用这两个API的 `ClassComponent` 通常被称为 ” `Error Boundaries`（错误边界）“。在 Error Boundaries 的子孙组件中发生的所有 ”React 工作流程内的错误 “都会被 Error Boundaries 捕获。
+
+```js
+this.setState(
+  () => {
+    // ...
+  },
+  () => {
+    // ... 用于执行 componentDidCatch的callback
+    // 及抛出react提示信息的callback
+  }
+);
+
+ReactDOM.render(element, container, () => {
+  // ... 用于抛出未捕获的错误及react的提示信息的callback
+});
+```
+
+## 3.BeforeMutation 阶段
+
+`BeforeMutation` 阶段主要工作发生在 `commitBeforeMutationEffects_complete` 中的 `commitBeforeMutationEffectsOnFiber` 方法中。
+
+```js
+function commitBeforeMutationEffectsOnFiber(finishedWork) {
+  const current = finishedWork.alternate;
+  const flags = finishedWork.flags;
+
+  // ...
+  // 处理包含Snapshot flag的fiberNode
+  if ((flags & Snapshot) !== NoFlags) {
+    switch (finishedWork.tag) {
+      case ClassComponent: {
+        if (current !== null) {
+          const prevProps = current.memoizedProps;
+          const prevState = current.memoizedState;
+          const instance = finishedWork.stateNode;
+          // 1. ClassComponent类型, 执行getSnapshotBeforeUpdate
+          const snapshot = instance.getSnapshotBeforeUpdate(
+            finishedWork.elementType === finishedWork.type
+              ? prevProps
+              : resolveDefaultProps(finishedWork.type, prevProps),
+            prevState
+          );
+        }
+        break;
+      }
+      case HostRoot: {
+        // 2. HostRoot类型, 清空HostRoot挂载的内容, 方便Mutation阶段渲染
+        if (supportsMutation) {
+          const root = finishedWork.stateNode;
+          clearContainer(root.containerInfo);
+        }
+        break;
+      }
+    }
+  }
+}
+```
+
+整个过程主要处理如下两种类型的 fiberNode：
+
+- ClassComponent：执行 `getSnapshotBeforeUpdate` 方法；
+- HostRoot：清空 `HostRoot` 挂在的内容，方便 `Mutation` 阶段渲染。
+
+## 4.Mutation 阶段
+
+对于 HostComponent，Mutation 阶段的工作就是进行 DOM 元素的增、删、改。
+
+### 4.1 删除 DOM 元素
+
+Mutation 阶段在 `commitXXXEffects_begin` 向下遍历过程中还会执行其特有的操作。Mutation 阶段特有的操作是 **删除 DOM 元素** 。
+
+要删除的元素 `fiber.deletions` 数组实在 render 阶段 `beginWork` 执行 `reconcile` 操作时添加的。整个删除以 **DFS** 的顺序遍历子树的每个 fiberNode 执行对应的操作。
+
+执行操作的是 `commitDeletion` , 其完整逻辑比较复杂。原因在于 -- 当删除一个 DOM 元素时，还需要考虑：
+
+- 其子树中所有组件的 `ummout` 逻辑；
+- 其子树中所有 `ref` 属性的卸载操作；
+- 其子树中所有 `Effect` 相关的 `Hook`（比如 `useLayoutEffect`）的 `destroy` 回调操作执行。
+
+### 4.2 插入、移动 DOM 元素
+
+进入`commitXXXEffects_complete`方法, 会对遍历的每个 fiberNode 执行`commitMutationEffectsOnFiber`, 在该方法中执行具体的DOM操作。
+
+commitPlacement 执行流程可以分为三个步骤：
+
+- 从当前 fiberNode 向上遍历，获取到第一个类型为 `HostComponent` 、`HostRoot` 、`HostPortal` 三者之一的祖先 fiberNode ，其对应 DOM 元素是 ”执行 DOM 操作的目标元素的父级 DOM 元素“；
+- 获取用于执行 `parentNode.insertBefore(child, before)` 方法的 ”before 对应 DOM 元素“。
+- 执行 `parentNode.insertBefore `方法（存在 before）或 `parentNode.appendChild` 方法（不存在 before）。
+
+### 4.3 更新 DOM 元素
+
+所有 ”变化属性的 key 、value“ 会保存在 `fiberNode.updateQueue` 中。当 `finishedWork.updateQueue` 存在时，其最终会在 `updateDOMProperties` 方法中遍历并改变对应属性，处理以下四种类型的数据：
+
+- style 属性变化
+- innerHTML
+- 直接文本节点变化
+- 其他元素属性
+
+### 4.4 Fiber Tree 切换
+
+当 Mutation 阶段的主要工作完成后，在进入Layout 阶段前，会执行如下代码完成 Fiber Tree 的切换：
+
+```js
+root.current = finishedWork;
+```
+
+选择这一时机切换 Fiber Tree，是因为对于 `ClassComponent`，当执行 `componentWillUnmout` 时 **（Mutation 阶段）** ，`Current Fiber Tree` 仍对应 UI 中的树。当执行 `componentDidMount/Update ` 时 **（Layout 阶段）** ， **Current Fiber Tree 对应的是本次更新的 Fiber Tree**。
+
+## 5. Layout 阶段
+
+对于 FC , `useLayoutEffect callback` 会在该阶段执行.(Layout阶段的名称来源于`useLayoutEffect`)
+
+Layout阶段在 `commitXXXEffects_begin` 向下遍历过程中也会执行特有的操作( `offscreenComponent` 的显/隐逻辑).
+
+进入`commitLayoutMountEffects_complete`方法后会对遍历到的 fiberNode 执行`commitLayoutEffectOnFiber`, 根据tag执行不同操作:
+
+- 对于 ClassComponent，在该阶段执行 `componentDidMount/Update` 方法
+- 对于 FC，在该阶段执行 `useLayoutEffect callback`
+
+另：`classComponent` 执行 `this.setState(newState, callback)` 传递的callback 参数、HostRoot 中执行 `ReactDOM.render(element, container, callback)` 传递的callback参数都会保存在对应的 `fiberNode.updateQueue` 中。这两种情况下 callback 也会在此中执行 `commitLayoutEffectOnFiber` 。
+
+## 6. 总结
+
+**ReactDOM Renderer** 的 `commit` 阶段可分为三个阶段:
+
+1. 开始前的准备工作, 如判断“是否有副作用需要执行”
+2. 处理副作用,
+   1. `BeforeMutation` 阶段
+   2. `Mutation` 阶段
+   3. `Layout` 阶段( **Fiber Tree** 的切换会在Mutation完成后, Layout未开始时执行)
+3. 结束后的收尾工作, 比如调度的更新
