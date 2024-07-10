@@ -1,36 +1,39 @@
 ---
-import Container from '../components/Container.astro';
-import Layout from '../layouts/Layout.astro';
+import Ticket from '@components/Ticket';
+import ScreenLayout from '@layouts/ScreenLayout.astro';
 ---
 
-<Layout title='赞助'>
-  <div
-    class=`w-full min-h-screen bg-[url('/src/assets/wave-dark.svg')] dark:bg-[url('/src/assets/wave-light.svg')] bg-no-repeat bg-bottom bg-contain pb-20`
-  >
-    <Container>
-      <main
-        class='flex flex-col justify-start items-start px-8 py-5 lg:py-8 mx-auto xl:px-20 max-w-screen-lg'
-      >
-        <h1 class='text-3xl md:text-6xl py-5'>Buy Me a Coffee ☕️</h1>
+<ScreenLayout title='赞助'>
+  <div class='bg-black w-full py-0 px-10 xl:px-20 overflow-hidden flex-auto flex max-w-screen-2xl'>
+    <div class='flex-none justify-center h-full flex flex-col'>
+      <h1 class='text-4xl leading-normal text-white'>
+        DevNow Blog System <br />
+        是一个开源的技术博客项目
+      </h1>
+      <hr class='border-dashed my-8 border-white' />
 
-        <div class='flex-auto leading-normal'>
-          <p>DevNow 是采用 MIT 许可的开源项目，使用完全免费。</p>
-          <br />
-          <p>
-            <a
-              href='https://github.com/LaughingZhu/DevNow'
-              target='_blank'
-              rel='noopener noreferrer'>喜欢可以来点个 Star ⭐️</a
-            >
-          </p>
-          <br />
-          <p>
-            DevNow
-            是一个为开发者打造的开源信息聚合平台。我们希望可以大家提供最新、最全面的开发资讯。您的支持将帮助我们走得更远，为更多开发者服务！
-          </p>
-        </div>
-      </main>
-    </Container>
+      <div class='bg-black-500 text-gray-500'>
+        您的支持可以帮助更好的运营 DevNow <br />(你能找到这个页面中的二维码吗)
+        <br />
+        <br />找不到可以点击下面👇🏻
+      </div>
+
+      <a href='https://github.com/LaughingZhu/DevNow' target='_blank' rel='noopener noreferrer'
+        ><button
+          class='bg-white rounded text-center transition focus-visible:ring-2 ring-offset-2 ring-gray-200 hover:bg-gray-900 border-2 border-transparent text-black flex-none mt-8 px-1.5 py-1'
+          >Sponsor me</button
+        ></a
+      >
+    </div>
+    <div class='flex-auto' id='ticket'>
+      <Ticket client:only='react' />
+    </div>
   </div>
-  <!-- </div> -->
-</Layout>
+
+  <style is:inline>
+    #ticket canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+  </style>
+</ScreenLayout>
