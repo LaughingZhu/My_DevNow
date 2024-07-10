@@ -1,16 +1,17 @@
 // debounce.js
-export function debounce(func, wait) {
-  let timeout;
+type DebounceType = (...args: any[]) => void;
+export function debounce(func: DebounceType, wait: number) {
+  let timeout: ReturnType<typeof setTimeout> | null;
 
   return function executedFunction(...args) {
     const context = this;
 
     const later = function () {
-      clearTimeout(timeout);
+      if (timeout) clearTimeout(timeout);
       func.apply(context, args);
     };
 
-    clearTimeout(timeout);
+    if (timeout) clearTimeout(timeout);
     timeout = setTimeout(later, wait);
   };
 }
