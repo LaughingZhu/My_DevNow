@@ -12,7 +12,6 @@ import {
   useSphericalJoint
 } from '@react-three/rapier';
 import { MeshLineGeometry, MeshLineMaterial } from 'meshline';
-import { useControls } from 'leva';
 
 extend({ MeshLineGeometry, MeshLineMaterial });
 useGLTF.preload('https://cdn.laughingzhu.cn/DevNow/ticket.glb');
