@@ -166,15 +166,15 @@ module.exports = {
 然后加载上面的模块。
 
 ```javascript
-/ main.js
+// main.js
 var mod = require('./lib');
 
-console.log(mod.counter);  // 3
+console.log(mod.counter); // 3
 mod.incCounter();
 console.log(mod.counter); // 3
 ```
 
-上面代码说明counter输出之后，lib.js模块内部的变化就影响不到counter了。这是因为mod.counter是一个原始类型的值，会被缓存。除非写成一个喊出，才能获取到内部变动的值。修改身边lib.js文件如下：
+上面代码说明counter输出之后，lib.js模块内部的变化就影响不到counter了。这是因为mod.counter是一个原始类型的值，会被缓存。除非写成一个函数，才能获取到内部变动的值。修改身边lib.js文件如下：
 
 ```javascript
 // lib.js
