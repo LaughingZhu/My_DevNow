@@ -1,0 +1,113 @@
+---
+title: 'Electron 的 主进程 和 渲染进程有什么区别？'
+desc: 'Electron 的 主进程 和 渲染进程有什么区别？'
+publishDate: '2024-07-13 13:42:36'
+image: 'https://cdn.laughingzhu.cn/DevNow/1dbebe69e565726bac251e367ce5b2a4-b80257.png'
+category: 'blog'
+author: 'LaughingZhu'
+tags: [Blog, LaughingZhu, Electron]
+---
+
+在 Electron 中，主进程（Main Process）和 渲染进程 （Renderer Process）是两个概念不同、职责不同的进程。理解他们的区别对开发 Electron 应用非常重要。
+
+## 主进程（Main Process）
+
+### 1.职责：
+
+- 管理应用生面周期：主进程复杂管理整个应用的生命周期，包括启动、退出等。
+- 创建和管理窗口：主进程负责创建和管理浏览器窗口（BrowserWindow）
+- 处理系统级操作：主进程可以直接与操作系统交互，例如文件系统操作、原生菜单、通知等。
+
+### 2.运行环境：
+
+- 主进程运行在 Node.js 环境中，可以使用所有的 Node.js API。
+- 主进程中也可以使用 Electron 提供的主进程 API，例如 app 、BrowserWindow 、 ipcMain 等。
+
+### 3.单一性：
+
+- 一个Electron 应用只有一个主进程，主进程在应用启动时创建，并在应用退出是终止。
+
+### 4示例代码：
+
+```js
+const { app, BrowserWindow } = require('electron');
+
+function createWindow() {
+  const win = new BrowserWindow({
+    width: 800,
+    height: 600,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js')
+    }
+  });
+  win.loadFile('index.html');
+}
+
+app.whenReady().then(() => {
+  createWindow();
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindow().length === 0) {
+      createWindow();
+    }
+  });
+  app.on('window-all-closed', () => {
+    // 如果不是 macOs 就退出应用
+    if (process.platform !== 'darwin') {
+      app.quit();
+    }
+  });
+});
+```
+
+## 渲染进程（Renderer Process）
+
+### 1.职责：
+
+- 渲染网页内容：渲染进程负责渲染 HTML、CSS 和 JavaScript，类似于浏览器中的渲染引擎。
+- 处理用户交互：渲染进程处理用户的操作和交互，例如按钮点击、表单提交等。
+
+### 2.运行环境：
+
+- 渲染进程运行在一个类似于浏览器的环境中，可以使用所有的Web API。
+- 渲染进程也可以使用 Node.js API，但通常为了安全性，我们通过预加载脚本（preload.js） 和 contextBridge 暴露必要的 API。
+
+### 3.多实例：
+
+- 一个 Electron 应用 可以有多个渲染进程。每个 BrowserWindow 对象对应一个独立的渲染进程。
+- 渲染进程是相互独立的，互不干扰。
+
+### 4.示例代码：
+
+```js
+<!-- index.html -->
+<!DOCTYPE html>
+<html>
+<head>
+  <title>My Electron App</title>
+</head>
+<body>
+  <h1>Hello, Electron!</h1>
+  <button id="myButton">Click me</button>
+  <script src="renderer.js"></script>
+</body>
+</html>
+
+```
+
+```javascript
+// renderer.js
+const { ipcRenderer } = require('electron');
+document.getElementById('myButton').addEventListener('click', () => {
+  ipcRenderer.send('button-click', 'Button was clicked!');
+});
+
+ipcRenderer.on('button-reply', (event, message) => {
+  console.log(message); // 主进程的回复
+});
+```
+
+## 总结
+
+- **主进程**：负责管理应用的生命周期、创建和管理窗口、处理系统级操作。运行在 Node.js 环境中，只有一个主进程。
+- **渲染进程**：负责渲染网页内容和处理用户交互。运行在类似浏览器的环境中，可以有多个渲染进程。

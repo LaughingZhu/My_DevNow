@@ -1,0 +1,113 @@
+---
+title: 'Taro 如何实现 JSX 到 WXML的'
+desc: 'Taro 如何实现 JSX 到 WXML的'
+publishDate: '2024-07-13 14:19:36'
+image: 'https://cdn.laughingzhu.cn/DevNow/dcbdf73ea18f3b04d36c8e48d398e3ad-f0ecb8.png'
+category: 'blog'
+author: 'LaughingZhu'
+tags: [Blog, LaughingZhu, Taro]
+---
+
+## 前言：
+
+源于一道飞猪的前端面试题，虽然工作中也一直在用 Taro 来写业务，但是关于 JSX 如何 到 WXML 还是没有详细了解过，所以当时回答的大概是猜测一些实现方式。
+
+我的回答：
+
+- Taro 内置的 解析器将 JSX -> AST（抽象语法树）
+- 通过 类似的 Schema 或者其他的配置内容，将 AST -> 小程序的标签
+- 编译生成一个完整的wxml文件
+
+然后面试官说，这也是一种实现方式。然后问了下一个问题，通过这种方式如何实现React 中 `<Protal />` ？
+
+我：这个...
+
+## 一、Taro 是什么？
+
+**Taro** 是一个开放式跨端跨框架解决方案，支持使用 React/Vue/Nerv 等框架来开发 [微信](https://mp.weixin.qq.com/) / [京东](https://mp.jd.com/?entrance=taro) / [百度](https://smartprogram.baidu.com/) / [支付宝](https://mini.open.alipay.com/) / [字节跳动](https://developer.open-douyin.com/) / [QQ](https://q.qq.com/) / [飞书](https://open.feishu.cn/document/uYjL24iN/ucDOzYjL3gzM24yN4MjN) / [快手](https://mp.kuaishou.com/) 小程序 / H5 / RN 等应用。
+
+Taro 的不同版本在实现 JSX 到 WXML 的过程中有不同的策略，尤其是 Taro2 和 Taro3 之间有显著的区别。
+
+![Taro2流程](https://cdn.laughingzhu.cn/DevNow/4edea3a6feac608a791838ad2d72c7f2-d611de.jpg)
+
+## 二、Taro2 实现 JSX 到 WXML
+
+在 Taro2 中，框架主要通过编译时（Compile-time）转换的方式将 JSX 转换为 WXML。
+
+### 编译时转换
+
+1. **JSX 转换**：
+
+- Taro2 使用 Babel 将 JSX 转换为 JavaScript 代码。
+- 通过自定义的 Babel 插件，Taro2 将 JSX 转换为 Taro 框架特定的组件调用。
+
+2. **模板生成**：
+
+- 在编译过程中，Taro2 会解析这些组件调用，生成对应的小程序模板（WXML）。
+- 同时生成相应的 JavaScript 逻辑文件（如 JSON、JS 文件）。
+
+3. **样式处理**：
+
+- 编译时还会将 CSS 转换为小程序支持的样式文件（WXSS）。
+
+### 优点和缺点
+
+- **优点**：
+  - 编译时转换效率较高，生成的代码性能较好。
+  - 生成的代码是静态的，体积较小。
+- **缺点**：
+  - 编译时转换的灵活性较差，不能很好地支持动态特性。
+  - 对于复杂的动态逻辑，编译时转换可能会比较困难。
+
+## 三、Taro3 的实现
+
+Taro3 引入了运行时（Runtime）的概念，允许在运行时进行部分 JSX 到 WXML 的转换。这种方式更接近于 React 的运行时行为。
+
+### 运行时转换
+
+1. **JSX 转换**：
+
+- Taro3 仍然使用 Babel 将 JSX 转换为 JavaScript 代码，但这次转换的目标是生成运行时可执行的代码，而不是静态模板。
+- Taro3 的 Babel 插件会将 JSX 转换为 Taro 运行时的组件调用。
+
+2. **运行时渲染**：
+
+- 在小程序运行时，Taro3 的运行时库会解析这些组件调用，并动态生成相应的 WXML 和 JavaScript 逻辑。
+- 运行时库负责管理组件的生命周期、状态更新等。
+
+3. **样式处理**：
+
+- 样式处理与 Taro2 类似，但由于运行时的存在，样式的动态性支持更好。
+
+### 引入运行时的原因
+
+- **支持动态特性**：Taro3 的运行时允许更好地支持 React 的动态特性，如动态组件、条件渲染等。这些特性在编译时很难处理，但在运行时可以更灵活地支持。
+- **一致性**：通过引入运行时，Taro3 可以更好地保持与 React 的一致性，使得开发者在使用 Taro 编写代码时，体验更接近于使用 React。
+- **代码维护**：运行时的引入简化了编译时的复杂转换逻辑，使得框架的维护和扩展变得更容易。
+
+![Taro3流程](https://cdn.laughingzhu.cn/DevNow/59274ebfee1c3f90d32efa9dfdb22da2-adabe6.jpg)
+
+### 优点和缺点
+
+- **优点**：
+  - 更好地支持动态特性，开发体验更接近于 React。
+  - 提高了框架的灵活性和扩展性。
+- **缺点**：
+  - 运行时库的引入增加了代码体积。
+  - 运行时的性能开销可能会略高于编译时的静态代码。
+
+## 四、总结
+
+- **Taro2**：主要通过编译时转换将 JSX 转换为 WXML，适合静态模板和简单逻辑，性能较好但灵活性较差。
+- **Taro3**：引入了运行时，通过运行时库在运行时解析和渲染 JSX，支持更复杂的动态逻辑和特性，开发体验更接近于 React，但增加了代码体积和运行时开销。
+
+Taro3 的设计使得它能够更好地支持复杂的应用场景和动态特性，尽管引入了运行时带来了一些开销，但总体上提高了开发的灵活性和一致性。
+
+> 传送门：可以参考 [这篇文章](https://devnow.laughingzhu.cn/posts/2023-11-25/) 来了解 **编译时** 和 **运行时** 的各自优势
+
+## 五、参考文章
+
+- [Taro-的设计思路](https://docs.taro.zone/blog/2018-06-07-Taro/#taro-%E7%9A%84%E8%AE%BE%E8%AE%A1%E6%80%9D%E8%B7%AF)
+- [前端框架原理](https://www.laughingzhu.cn/detail/25)
+- [Taro编译原理浅析](https://juejin.cn/post/6983864416819216415#heading-10)
+- [Taro实现细节](https://docs.taro.zone/docs/implement-note)
