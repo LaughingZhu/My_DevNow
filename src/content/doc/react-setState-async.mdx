@@ -1,0 +1,222 @@
+---
+title: 'React setState 是异步吗？'
+desc: 'DevNow：React setState 是异步吗？'
+publishDate: '2024-07-16 12:00:00'
+image: 'https://cdn.laughingzhu.cn/DevNow/50f23794f34e5f8be3a1a78f12f317e2-fe55bf.jpeg'
+category: 'blog'
+author: 'LaughingZhu'
+tags: [Blog, React]
+---
+
+## 1.前言
+
+由于这个问题之前在面试的时候有被问到过，所有就写一下，希望能帮助到大家。
+先给出答案，react 在不同的版本中，实现也是不一样的。针对这个 react 作者也参与了一些讨论。[讨论地址](https://github.com/facebook/react/issues/11527#issuecomment-360199710)
+
+- react v17及之前：
+
+  - 在 React 的合成事件、调度、生命周期中表现都是异步的。
+  - 在 js 原生事件、setTimeout、setInterval 中表现都是同步的。
+
+- react v18及之后：
+  - 以上所有情况表现都是异步的。[官方说明](https://github.com/reactwg/react-18/discussions/21)
+
+> 注意：
+> 这里指的是渲染表现为异步或者同步，实际上在 react 的调度中，都是异步执行的。
+
+## 2.分析 (本文基于React v17.0.1)
+
+为了更加具体的理解setState的执行行为，我们先来看下面的代码，预设我们是在ReactDOM.render的legacy模式下运行，你可以正确说出两次console.log的结果吗？
+
+```js
+constructor(props) {
+  super(props);
+  this.state = {
+    data: "hello"
+  }
+}
+componentDidMount() {
+  //第一个setState
+  this.setState({
+    data: 'world'
+  })
+
+  console.log("in componentDidMount: ", this.state.data);
+
+  setTimeout(() => {
+    // 第二个setState
+    this.setState({
+      data: 'Bob'
+    })
+
+    console.log("in setTimeout: ", this.state.data);
+  })
+}
+
+
+// 答案是：
+// in componentDidMount:  hello
+// in setTimeout:  Bob
+```
+
+我们可以看到，第一个log输出的是hello，也就是说，当执行第一个setState时，是表现为同步行为的，在执行第二个setState时，log输出的是Bob，是表现为异步行为的。
+
+那么这是为什么呢，可以粗略看出，两个setState执行的环境是不同的，第一个setState的执行环境是在componentDidMount()这个生命周期钩子函数中，第二个setState是在setTimeout中执行的。相信大家一眼就看出来了，问题的本质就是执行环境的不同，导致了setState在执行时的上下文就不一样了，而执行上下文executionContext，就是决定setState同步异步行为的关键。
+
+为何executionContext为何在这个过程中这么重要呢，我们在前面了解到setState在执行过程中会进入 scheduleUpdateOnFiber这个函数，我们先来简单看下在React源码中，有什么蹊跷吧。
+
+```ts
+export function scheduleUpdateOnFiber(fiber: Fiber, lane: Lane, eventTime: number) {
+  const priorityLevel = getCurrentPriorityLevel();
+
+  if (lane === SyncLane) {
+    if (
+      // Check if we're inside unbatchedUpdates
+      (executionContext & LegacyUnbatchedContext) !== NoContext &&
+      // Check if we're not already rendering
+      (executionContext & (RenderContext | CommitContext)) === NoContext
+    ) {
+      // Register pending interactions on the root to avoid losing traced interaction data.
+      schedulePendingInteractions(root, lane);
+
+      // This is a legacy edge case. The initial mount of a ReactDOM.render-ed
+      // root inside of batchedUpdates should be synchronous, but layout updates
+      // should be deferred until the end of the batch.
+      performSyncWorkOnRoot(root);
+    } else {
+      ensureRootIsScheduled(root, eventTime);
+      schedulePendingInteractions(root, lane);
+      if (executionContext === NoContext) {
+        // Flush the synchronous work now, unless we're already working or inside
+        // a batch. This is intentionally inside scheduleUpdateOnFiber instead of
+        // scheduleCallbackForFiber to preserve the ability to schedule a callback
+        // without immediately flushing it. We only do this for user-initiated
+        // updates, to preserve historical behavior of legacy mode.
+        resetRenderTimer();
+        flushSyncCallbackQueue();
+      }
+    }
+  } else {
+    // 省略部分代码...
+    // Schedule other updates after in case the callback is sync.
+    ensureRootIsScheduled(root, eventTime);
+    schedulePendingInteractions(root, lane);
+  }
+
+  // We use this when assigning a lane for a transition inside
+  // `requestUpdateLane`. We assume it's the same as the root being updated,
+  // since in the common case of a single root app it probably is. If it's not
+  // the same root, then it's not a huge deal, we just might batch more stuff
+  // together more than necessary.
+  mostRecentlyUpdatedRoot = root;
+}
+```
+
+我们可以看到其中的关键代码
+
+```js
+if (executionContext === NoContext) {
+  resetRenderTimer();
+  flushSyncCallbackQueue();
+}
+```
+
+其中 `flushSyncCallbackQueue` **函数的作用就是同步执行更新队列里的更新 update** ，前面我们说过了setState后会把更新对象update以队列形式保存下来，这里就是要执行这些更新并清空队列。
+
+> 可以看到, 是否同步渲染调度决定代码是 `flushSyncCallbackQueue()`. 进入该分支的条件:
+> 必须是 `legacy` 模式, `concurrent` 模式下 `expirationTime` 不会为 `Sync` > `executionContext === NoContext` , 执行上下文必须要为空.
+>
+> 两个条件缺一不可.
+
+`executionContext === NoContext` ，也就是说明React已经不处于自己的调度环节了，而是处于一种无事可做的状态时，React就会去同步的执行setState的回调函数进行更新。
+
+## 3.那么，什么时候才会是一种无事可做的状态呢?
+
+答案就是不处于React本身的调度阶段时，比如 **setTimeout，网络请求，直接在Dom节点上绑定的事件等，这些行为都不会触发React的调度行为** 。当React处于自己的调度阶段时，会根据所处的状态不同给 `executionContext` 赋值不同的值，如赋值为 `BatchedContext` 时说明进入了 `更新合并阶段` ，而 `executionContext` 默认情况下就是 `NoContext` 。所以不在调度阶段时， **React就会进入无事可做的状态，就会将setState同步执行** 。
+
+在 `React处于自己的调度阶段` ，会执行诸如 **生命周期钩子函数，合成事件等** ，在这些情况下，会触发 `batchedUpdate` 进行合并更新，所以此时将 `executionContext` 赋值为 `BatchedContext` ，那么自然就是异步的行为了。
+
+## 4.结论
+
+同步:
+
+- 首先在legacy模式下
+- 在执行上下文为空的时候去调用setState
+  - 可以使用异步调用如setTimeout, Promise, MessageChannel等
+  - 可以监听原生事件, 注意不是合成事件, 在原生事件的回调函数中执行 setState 就是同步的
+
+异步:
+
+- 如果是合成事件中的回调, executionContext |= DiscreteEventContext, 所以不会进入, 最终表现出异步
+- concurrent 模式下都为异步
+
+## 5.为什么要将 setState 设计成异步呢？
+
+同样有此疑问的还有 MobX 的作者 Michel Weststrate，他认为经常听到的答案都很容易反驳，并认为这可能是一个历史包袱，所以开了一个 issue 询问真正的原因。最终这个 issue 得到了 React 核心成员 [Dan Abramov 的回复](<(https://github.com/facebook/react/issues/11527#issuecomment-360199710)>)，Dan 的回复表明这不是一个历史包袱，而是一个经过深思熟虑的设计。
+
+Dan 在回复中表示为什么 setState() 是异步的，这并没有一个明显的答案（obvious answer），每种方案都有它的权衡。但是 React 的设计有以下几点考量：
+
+### 5.1保持内部的一致性
+
+首先，我想我们都同意推迟并批量处理重渲染是有益而且对性能优化很重要的，无论 setState() 是同步的还是异步的。那么就算让 state 同步更新，props 也不行，因为当父组件重渲染`（re-render ）`了你才知道 `props` 。
+
+现在的设计保证了 React 提供的 `objects（state，props，refs）`的行为和表现都是一致的。为什么这很重要？Dan 举了个栗子：
+
+假设 state 是同步更新的，那么下面的代码是可以按预期工作的：
+
+```js
+console.log(this.state.value); // 0
+this.setState({ value: this.state.value + 1 });
+console.log(this.state.value); // 1
+this.setState({ value: this.state.value + 1 });
+console.log(this.state.value); // 2
+```
+
+然而，这时你需要将状态提升到父组件，以供多个兄弟组件共享：
+
+```js
+-this.setState({ value: this.state.value + 1 });
++this.props.onIncrement(); // 在父组件中做同样的事
+```
+
+需要指出的是，在 React 应用中这是一个很常见的重构，几乎每天都会发生。
+
+然而下面的代码却不能按预期工作：
+
+```js
+console.log(this.props.value); // 0
+this.props.onIncrement();
+console.log(this.props.value); // 0
+this.props.onIncrement();
+console.log(this.props.value); // 0
+```
+
+这是因为 **同步模型** 中，虽然 `this.state` 会立即更新，但是 `this.props` 并不会。而且在没有重渲染父组件的情况下，我们不能立即更新 this.props。如果要立即更新 `this.props` （也就是立即重渲染父组件），就必须放弃批处理（根据情况的不同，性能可能会有显著的下降）。
+
+所以为了解决这样的问题，在 React 中 `this.state` 和 `this.props` 都是异步更新的，在上面的例子中重构前跟重构后都会打印出 0。这会让状态提升更安全。
+
+最后 Dan 总结说，React 模型更愿意保证内部的一致性和状态提升的安全性，而不总是追求代码的简洁性。
+
+### 5.2性能优化
+
+我们通常认为状态更新会按照既定顺序被应用，无论 state 是同步更新还是异步更新。然而事实并不一定如此。
+
+React 会依据不同的调用源，给不同的 setState() 调用分配不同的优先级。调用源包括事件处理、网络请求、动画等。
+
+Dan 又举了个栗子。假设你在一个聊天窗口，你正在输入消息，TextBox 组件中的 setState() 调用需要被立即应用。然而，在你输入过程中又收到了一条新消息。更好的处理方式或许是延迟渲染新的 MessageBubble 组件，从而让你的输入更加顺畅，而不是立即渲染新的 MessageBubble 组件阻塞线程，导致你输入抖动和延迟。
+
+如果给某些更新分配低优先级，那么就可以把它们的渲染分拆为几个毫秒的块，用户也不会注意到。
+
+### 5.3更多的可能性
+
+Dan 最后说到，异步更新并不只关于性能优化，而是 React 组件模型能做什么的一个根本性转变（ `fundamental shift` ）。
+
+Dan 还是举了个栗子。假设你从一个页面导航到到另一个页面，通常你需要展示一个加载动画，等待新页面的渲染。但是如果导航非常快，闪烁一下加载动画又会降低用户体验。
+
+如果这样会不会好点，你只需要简单的调用 setState() 去渲染一个新的页面，React “在幕后”开始渲染这个新的页面。想象一下，不需要你写任何的协调代码，如果这个更新花了比较长的时间，你可以展示一个加载动画，否则在新页面准备好后，让 React 执行一个无缝的切换。此外，在等待过程中，旧的页面依然可以交互，但是如果花费的时间比较长，你必须展示一个加载动画。
+
+事实证明，在现在的 React 模型基础上做一些 [生命周期调整](https://github.com/reactjs/rfcs/pull/6)，真的可以实现这种设想。[@acdlite](https://github.com/acdlite) 已经为这个功能努力几周了，并且很快会发布一个 [RFC（亦可赛艇！）](https://github.com/reactjs/rfcs)。
+
+> 需要注意的是，异步更新 state 是有可能实现这种设想的前提。如果 同步更新 state 就没有办法在幕后渲染新的页面，还保持旧的页面可以交互。它们之间独立的状态更新会冲突。
+
+Dan 最后对 Michel 说到：我希望我们能在接下来几个月说服你，并且你会欣赏到 React 模型的灵活性。据我理解，这种灵活性至少一部分要归功于 state 的异步更新。
