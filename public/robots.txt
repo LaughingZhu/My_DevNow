@@ -1,4 +1,6 @@
+# Algolia-Crawler-Verif: DEC58366A66B4803
+
 User-agent: *
 Allow: /
 
-Sitemap: https://devnow.laughingzhu.cn/sitemap-index.xml
+Sitemap: https://www.laughingzhu.cn/sitemap-index.xml

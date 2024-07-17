@@ -6,7 +6,7 @@ DevNow 是一个精简的开源技术博客项目，支持 Vercel 一键部署�
 
 我们致力于打造一个 **轻量级、高效率** 的内容平台，让科技与开发领域的动态快速、准确地呈现在你的面前。
 
-官网直达： <https://devnow.laughingzhu.cn/>
+官网直达： <https://www.laughingzhu.cn/>
 
 ![展示](https://cdn.laughingzhu.cn/DevNow/hJB0pNu4AeZKlnEhgAnyn.png-thumb)
 
