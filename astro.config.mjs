@@ -15,7 +15,7 @@ const PUBLIC_SENTRY_TOKEN = process.env.PUBLIC_SENTRY_TOKEN;
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://devnow.laughingzhu.cn',
+  site: 'https://www.laughingzhu.cn',
   experimental: {
     // 在静态模式下构建时，启用内容集合的持久性缓存。
     contentCollectionCache: true
