@@ -1,0 +1,402 @@
+---
+title: 'React Hooks'
+desc: 'Blog：React Hooks'
+publishDate: '2024-07-19 14:00:00'
+image: 'https://cdn.laughingzhu.cn/DevNow/2409f0925407b6dc8ca7746aa455e7bf-ce9be8.png'
+category: 'blog'
+author: 'LaughingZhu'
+tags: [Blog, React]
+---
+
+## 1. Hook 简介
+
+Hook 是 `React 16.8` 的新增特性。它可以让你在不编写 class 的情况下使用 state 以及其他的 React 特性。
+
+```js
+import React, { useState } from 'react';
+
+function Example() {
+  // 声明一个新的叫做 “count” 的 state 变量
+  const [count, setCount] = useState(0);
+
+  return (
+    <div>
+      <p>You clicked {count} times</p>
+      <button onClick={() => setCount(count + 1)}>Click me</button>
+    </div>
+  );
+}
+```
+
+在 `React Conf 2018` 上，Sophie Alpert 和 Dan Abramov 介绍了 Hook，紧接着 Ryan Florence 演示了如何使用 Hook 重构应用。你可以在这里看到这个视频：
+
+https://www.youtube.com/watch?v=dpw9EHDh2bM
+
+## 2. 没有破坏性改动
+
+在我们继续之前，请记住 Hook 是：
+
+完全可选的。 你无需重写任何已有代码就可以在一些组件中尝试 Hook。但是如果你不想，你不必现在就去学习或使用 Hook。
+
+- 100% 向后兼容的。
+- Hook 不包含任何破坏性改动。
+- 现在可用。 Hook 已发布于 v16.8.0。
+
+**没有计划从 React 中移除 class** 。
+
+**Hook 不会影响你对 React 概念的理解** 。 恰恰相反，Hook 为已知的 React 概念提供了更直接的 `API：props， state，context，refs` 以及生命周期。稍后我们将看到，Hook 还提供了一种更强大的方式来组合他们。
+
+## 3. 动机
+
+Hook 解决了我们五年来编写和维护成千上万的组件时遇到的各种各样看起来不相关的问题。无论你正在学习 React，或每天使用，或者更愿尝试另一个和 React 有相似组件模型的框架，你都可能对这些问题似曾相识
+
+### 3.1 复杂组件变得难以理解
+
+开发者编写的业务逻辑会分散在不同的生命周期函数中，这不仅会造成 ”同一个生命周期函数中包含多种不想关的逻辑“，也会造成 ”同一个业务逻辑被分割到不同生命周期函数中“。组件愈发复杂，这个问题愈发严重
+
+### 3.2 在组件之间复用状态逻辑很难
+
+承接上一个问题，当逻辑被分割到不同生命周期函数中后，很难跨组件复用“有状态的逻辑”。为了解决这个问题，React 先后提出了 [render props](https://zh-hans.legacy.reactjs.org/docs/render-props.html) 和 [高阶组件](https://zh-hans.legacy.reactjs.org/docs/higher-order-components.html) 。虽然熟练应用这些模式能够复用 “有状态的逻辑”，但也为组件结构引入了新的复杂度。
+
+### 3.3 难以理解的 class
+
+除了代码复用和代码管理会遇到困难外，我们还发现 class 是学习 React 的一大屏障。你必须去理解 JavaScript 中 this 的工作方式，这与其他语言存在巨大差异。还不能忘记绑定事件处理器。
+
+## 4. 工作原理
+
+对于useState Hook，考虑如下例子：
+
+```js
+function App() {
+  const [num, updateNum] = useState(0);
+
+  return <p onClick={() => updateNum((num) => num + 1)}>{num}</p>;
+}
+```
+
+可以将工作分为两部分：
+
+1. 通过一些途径产生更新，更新会造成组件 `render` 。
+
+2. 组件 `render` 时 `useState` 返回的 `num` 为更新后的结果。
+
+其中步骤1的更新可以分为 `mount` 和 `update` ：
+
+1. 调用 `ReactDOM.render` 会产生 `mount` 的更新，更新内容为 `useState` 的 `initialValue` （即0）。
+
+2. 点击p标签触发 `updateNum` 会产生一次 `update` 的更新，更新内容为 `num => num + 1` 。
+
+接下来讲解这两个步骤如何实现。
+
+### 4.1 更新是什么
+
+> 通过一些途径产生更新，更新会造成组件 `render` 。
+
+首先我们要明确更新是什么。“更新”对应的数据结构 -- Update。
+
+在我们的极简例子中，更新就是如下数据结构：
+
+```js
+const update = {
+  // 更新执行的函数
+  action,
+  // 与同一个Hook的其他更新形成链表
+  next: null
+};
+```
+
+对于App来说，点击p标签产生的 `update` 的 `action` 为 `num => num + 1` 。
+
+如果我们改写下App的 `onClick` ：
+
+```js
+// 之前
+return <p onClick={() => updateNum((num) => num + 1)}>{num}</p>;
+
+// 之后
+return (
+  <p
+    onClick={() => {
+      updateNum((num) => num + 1);
+      updateNum((num) => num + 1);
+      updateNum((num) => num + 1);
+    }}
+  >
+    {num}
+  </p>
+);
+```
+
+那么点击p标签会产生三个update。
+
+### 4.2 update 数据结构
+
+这些update是如何组合在一起呢？
+
+答案是：他们会形成 **环状单向链表** 。
+
+调用 `updateNum` 实际调用的是 `dispatchAction.bind(null, hook.queue)` ，我们先来了解下这个函数：
+
+```js
+function dispatchAction(queue, action) {
+  // 创建update
+  const update = {
+    action,
+    next: null
+  };
+
+  // 环状单向链表操作
+  if (queue.pending === null) {
+    update.next = update;
+  } else {
+    update.next = queue.pending.next;
+    queue.pending.next = update;
+  }
+  queue.pending = update;
+
+  // 模拟React开始调度更新
+  schedule();
+}
+```
+
+这样做的好处是，当我们要遍历 `update` 时， `queue.pending.next` 指向第一个插入的 `update` 。
+
+### 4.3 状态如何保存
+
+现在我们知道，更新产生的 `update` 对象会保存在 `queue` 中。
+
+不同于 `ClassComponent` 的实例可以存储数据，对于 `FunctionComponent` ， `queue` 存储在哪里呢？
+
+答案是： `FunctionComponent` 对应的 `fiber` 中。
+
+我们使用如下精简的fiber结构:
+
+```js
+// App组件对应的fiber对象
+const fiber = {
+  // 保存该FunctionComponent对应的Hooks链表
+  memoizedState: null,
+  // 指向App函数
+  stateNode: App
+};
+```
+
+### 4.3 Hook 数据结构
+
+接下来我们关注 `fiber.memoizedState` 中保存的Hook的数据结构。
+
+可以看到，Hook与update类似，都通过链表连接。不过Hook是 **无环的单向链表** 。
+
+```js
+hook = {
+  // 保存update的queue，即上文介绍的queue
+  queue: {
+    pending: null
+  },
+  // 保存hook对应的state
+  memoizedState: initialState,
+  // 与下一个Hook连接形成单向无环链表
+  next: null
+};
+```
+
+:::note[注意]
+
+注意区分 `update` 与 `hook` 的所属关系：
+
+每个 `useState` 对应一个 `hook` 对象。
+
+调用 `const [num, updateNum] = useState(0)` ;时 `updateNum` （即上文介绍的 `dispatchAction` ）产生的 `update` 保存在 `useState` 对应的 `hook.queue` 中。
+
+:::
+
+### 4.4 模拟 React 调度更新流程
+
+在上文 `dispatchAction` 末尾我们通过 `schedule` 方法模拟 `React` 调度更新流程。
+
+```js
+function dispatchAction(queue, action) {
+  // ...创建update
+
+  // ...环状单向链表操作
+
+  // 模拟React开始调度更新
+  schedule();
+}
+```
+
+我们用 `isMount` 变量指代是 `mount` 还是 `update` 。
+
+```js
+// 首次render时是mount
+isMount = true;
+
+function schedule() {
+  // 更新前将workInProgressHook重置为fiber保存的第一个Hook
+  workInProgressHook = fiber.memoizedState;
+  // 触发组件render
+  fiber.stateNode();
+  // 组件首次render为mount，以后再触发的更新为update
+  isMount = false;
+}
+```
+
+通过 `workInProgressHook` 变量指向当前正在工作的hook。
+
+```js
+workInProgressHook = fiber.memoizedState;
+```
+
+在组件 `render` 时，每当遇到下一个 `useState` ，我们移动 `workInProgressHook` 的指针。
+
+```js
+workInProgressHook = workInProgressHook.next;
+```
+
+这样，只要每次组件 `render` 时 `useState` 的调用顺序及数量保持一致，那么始终可以通过 `workInProgressHook` 找到当前 `useState` 对应的hook对象。
+
+到此为止，我们已经完成第一步。
+
+> 1.通过一些途径产生更新，更新会造成组件 `render` 。
+
+接下来实现第二步。
+
+> 2.组件 `render` 时 `useState` 返回的num为更新后的结果。
+
+### 4.5 计算 state
+
+组件 `render` 时会调用 `useState` ，他的大体逻辑如下：
+
+```js
+function useState(initialState) {
+  // 当前useState使用的hook会被赋值该该变量
+  let hook;
+
+  if (isMount) {
+    // ...mount时需要生成hook对象
+  } else {
+    // ...update时从workInProgressHook中取出该useState对应的hook
+  }
+
+  let baseState = hook.memoizedState;
+  if (hook.queue.pending) {
+    // ...根据queue.pending中保存的update更新state
+  }
+  hook.memoizedState = baseState;
+
+  return [baseState, dispatchAction.bind(null, hook.queue)];
+}
+```
+
+我们首先关注如何获取hook对象：
+
+```js
+if (isMount) {
+  // mount时为该useState生成hook
+  hook = {
+    queue: {
+      pending: null
+    },
+    memoizedState: initialState,
+    next: null
+  };
+
+  // 将hook插入fiber.memoizedState链表末尾
+  if (!fiber.memoizedState) {
+    fiber.memoizedState = hook;
+  } else {
+    workInProgressHook.next = hook;
+  }
+  // 移动workInProgressHook指针
+  workInProgressHook = hook;
+} else {
+  // update时找到对应hook
+  hook = workInProgressHook;
+  // 移动workInProgressHook指针
+  workInProgressHook = workInProgressHook.next;
+}
+```
+
+当找到该 `useState` 对应的hook后，如果该 `hook.queue.pending` 不为空（即存在 `update` ），则更新其 `state` 。
+
+```js
+// update执行前的初始state
+let baseState = hook.memoizedState;
+
+if (hook.queue.pending) {
+  // 获取update环状单向链表中第一个update
+  let firstUpdate = hook.queue.pending.next;
+
+  do {
+    // 执行update action
+    const action = firstUpdate.action;
+    baseState = action(baseState);
+    firstUpdate = firstUpdate.next;
+
+    // 最后一个update执行完后跳出循环
+  } while (firstUpdate !== hook.queue.pending.next);
+
+  // 清空queue.pending
+  hook.queue.pending = null;
+}
+
+// 将update action执行完后的state作为memoizedState
+hook.memoizedState = baseState;
+```
+
+### 4.6 useState 简易版（完整代码）
+
+```js
+function useState(initialState) {
+  let createHook;
+
+  if (isMount) {
+    hook = {
+      queue: {
+        pending: null
+      },
+      memoizedState: initialState,
+      next: null
+    };
+
+    if (!fiber.memoizedState) {
+      fiber.memoizedState = hook;
+    } else {
+      workInProgressHook.next = hook;
+    }
+
+    workInProgressHook = hook;
+  } else {
+    hook = workInProgressHook;
+    workInProgressHook = workInProgressHook.next;
+  }
+
+  let baseState = hook.memoizedState;
+  if (hook.queue.pending) {
+    let firstUpdate = hook.queue.pending.next;
+
+    do {
+      const action = firstUpdate.action;
+      baseState = action(baseState);
+      firstUpdate = firstUpdate.next;
+    } while (firstUpdate !== hook.queue.pending.next);
+
+    hook.queue.pending.next = null;
+  }
+  hook.memoizedState = baseState;
+
+  return [baseState, dispatchEvent.bind(null, hook.queue)];
+}
+```
+
+### 4.7 简易版不足
+
+我们用尽可能少的代码模拟了 `Hooks` 的运行，但是相比 `React Hooks `，他还有很多不足。以下是他与 `React Hooks` 的区别：
+
+1. `React Hooks` 没有使用 `isMount` 变量，而是在不同时机使用不同的 `dispatcher` 。换言之， `mount` 时的 `useState` 与 `update` 时的 `useState` 不是同一个函数。
+
+2. `React Hooks` 有中途跳过更新的优化手段。
+
+3. `React Hooks` 有 `batchedUpdates` ，当在click中触发三次 `updateNum` ，精简React会触发三次更新，而React只会触发一次。
+
+4. `React Hooks` 的 `update` 有优先级概念，可以跳过不高优先的 `update` 。
