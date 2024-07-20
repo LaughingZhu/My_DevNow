@@ -28,6 +28,11 @@ export const RIGHT_MENU: Menu[] = [
     label: 'Github',
     href: 'https://github.com/LaughingZhu/DevNow',
     external: true
+  },
+  {
+    label: 'RSS',
+    href: '/rss.xml',
+    external: true
   }
 ];
 export const MOBILE_MENU: Menu[] = [...LEFT_MENU, ...RIGHT_MENU].filter(
