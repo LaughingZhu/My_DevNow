@@ -295,10 +295,10 @@ const Child = memo((props:
 
 ![image.png](https://cdn.laughingzhu.cn/1649991464040-c04626f3-e9e9-4679-a2c2-629405526aca.png)
 
-**useMemo()**返回一个**memoized**值。把“创建”函数和依赖项数组作为参数传入useMemo,它会仅在**某个依赖改变**时才**重新计算memoized值**，这中优化有助于**避免每次渲染**时都进行高开销的计算。
+**useMemo()** 返回一个 **memoized** 值。把“创建”函数和依赖项数组作为参数传入useMemo,它会仅在**某个依赖改变**时才**重新计算memoized值**，这中优化有助于**避免每次渲染**时都进行高开销的计算。
 
-**注意：**传入useMemo的函数在渲染期间执行，请不要在这个函数内部执行与渲染无关的操作，诸如副作用这类的操作属于useEffect的使用范畴。
+**注意**：传入useMemo的函数在渲染期间执行，请不要在这个函数内部执行与渲染无关的操作，诸如副作用这类的操作属于useEffect的使用范畴。
 
 如果没有提供依赖数组项，在每次渲染时都会计算新的值，此时和没使用useMemo作用相同。
 
-**总结：**React.memo、React.useCallback、React.useMemo都是针对函数组件使用的，目的是避免子组件重复无效的渲染。
+**总结**：React.memo、React.useCallback、React.useMemo都是针对函数组件使用的，目的是避免子组件重复无效的渲染。
