@@ -62,7 +62,7 @@ if (subtreeHasEffects || rootHasEffects) {
 
 每个mask由与该阶段相关的副作用flags组合而成, 如
 
-- `BeforeMutationMask`由update和snapshot组成，代表 ”BeforeMutation“ 阶段与这两个 flags 有关（由于SnapShot 是 ”ClassComponent 存在更新，且定义了 getSnapshotBeforeUpdate 方法“后才会设置的 flags，因此可以判断 BeforeMutation 阶段会执行 getSnapshotBeforeUpdate 犯法）。
+- `BeforeMutationMask`由update和snapshot组成，代表 ”BeforeMutation“ 阶段与这两个 flags 有关（由于SnapShot 是 ”ClassComponent 存在更新，且定义了 getSnapshotBeforeUpdate 方法“后才会设置的 flags，因此可以判断 BeforeMutation 阶段会执行 getSnapshotBeforeUpdate 方法）。
 - `MutationMask`包含的大多是与ui相关的副作用, 所以ui操作发生 `Mutation` 阶段。当”Mutation“阶段完成时, 根据双缓存机制, 执行 `root.current = finishedWork` 完成`current fiber tree`的切换。
 - 当`Layout`阶段完成(或跳过)时, 又会开启新的调度：
   1. commit阶段触发了新的更新, 比如在`useLayoutEffect`回调中触发更新;

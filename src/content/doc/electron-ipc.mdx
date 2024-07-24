@@ -8,105 +8,96 @@ author: 'LaughingZhu'
 tags: [Blog, LaughingZhu, Electron]
 ---
 
-在 Electron 中，主进程（Main Process）和 渲染进程 （Renderer Process）是两个概念不同、职责不同的进程。理解他们的区别对开发 Electron 应用非常重要。
+在 ElectronJs 中，主要有三种常见的进程通信（IPC）方式，他们分别是：
 
-## 主进程（Main Process）
+## 1.主进程和渲染进程之间的IPC
 
-### 1.职责：
+### `ipcMain` 和 `ipcRenderer`：
 
-- 管理应用生面周期：主进程复杂管理整个应用的生命周期，包括启动、退出等。
-- 创建和管理窗口：主进程负责创建和管理浏览器窗口（BrowserWindow）
-- 处理系统级操作：主进程可以直接与操作系统交互，例如文件系统操作、原生菜单、通知等。
+这是 Electron 提供的原生通信方式。`ipcMain` 用于主进程，`ipcRenderer` 用于渲染进程。通过这种方式，渲染进程可以发送消息给主进程，主进程也可以向渲染进程发送消息。
 
-### 2.运行环境：
+### 用法：
 
-- 主进程运行在 Node.js 环境中，可以使用所有的 Node.js API。
-- 主进程中也可以使用 Electron 提供的主进程 API，例如 app 、BrowserWindow 、 ipcMain 等。
+- 在主进程中：
 
-### 3.单一性：
-
-- 一个Electron 应用只有一个主进程，主进程在应用启动时创建，并在应用退出是终止。
-
-### 4示例代码：
-
-```js
-const { app, BrowserWindow } = require('electron');
-
-function createWindow() {
-  const win = new BrowserWindow({
-    width: 800,
-    height: 600,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js')
-    }
-  });
-  win.loadFile('index.html');
-}
-
-app.whenReady().then(() => {
-  createWindow();
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindow().length === 0) {
-      createWindow();
-    }
-  });
-  app.on('window-all-closed', () => {
-    // 如果不是 macOs 就退出应用
-    if (process.platform !== 'darwin') {
-      app.quit();
-    }
-  });
+```javascript
+const { ipcMain } = require('electron');
+ipcMain.on('message', (event, arg) => {
+  console.log(arg); // 收到渲染进程的消息
+  event.reply('reply', '主进程的回复');
 });
 ```
 
-## 渲染进程（Renderer Process）
+- 在渲染进程中：
 
-### 1.职责：
-
-- 渲染网页内容：渲染进程负责渲染 HTML、CSS 和 JavaScript，类似于浏览器中的渲染引擎。
-- 处理用户交互：渲染进程处理用户的操作和交互，例如按钮点击、表单提交等。
-
-### 2.运行环境：
-
-- 渲染进程运行在一个类似于浏览器的环境中，可以使用所有的Web API。
-- 渲染进程也可以使用 Node.js API，但通常为了安全性，我们通过预加载脚本（preload.js） 和 contextBridge 暴露必要的 API。
-
-### 3.多实例：
-
-- 一个 Electron 应用 可以有多个渲染进程。每个 BrowserWindow 对象对应一个独立的渲染进程。
-- 渲染进程是相互独立的，互不干扰。
-
-### 4.示例代码：
-
-```html
-<!-- index.html -->
-<!doctype html>
-<html>
-  <head>
-    <title>My Electron App</title>
-  </head>
-  <body>
-    <h1>Hello, Electron!</h1>
-    <button id="myButton">Click me</button>
-    <script src="renderer.js"></script>
-  </body>
-</html>
-```
-
-```js
-// renderer.js
+```javascript
 const { ipcRenderer } = require('electron');
-document.getElementById('myButton').addEventListener('click', () => {
-  ipcRenderer.send('button-click', 'Button was clicked!');
-});
-
-ipcRenderer.on('button-reply', (event, message) => {
-  console.log(message); // 主进程的回复
+ipcRenderer.send('message', '来自渲染进程的消息');
+ipcRenderer.on('reply', (event, arg) => {
+  console.log(arg); // 收到主进程的回复 });
 });
 ```
 
-## 总结
+## 2.远程模块（已经弃用）
 
-- **主进程**：负责管理应用的生命周期、创建和管理窗口、处理系统级操作。运行在 Node.js 环境中，只有一个主进程。
-- **渲染进程**：负责渲染网页内容和处理用户交互。运行在类似浏览器的环境中，可以有多个渲染进程。
+### remote 模块：
+
+这个模块允许在渲染进程中调用主进程中的对象和方法。然而，由于安全问题，该模块已经被弃用，建议使用其替代方法，如 `contextBridge` 和 `ipcRenderer` 。
+
+### 用法
+
+```javascript
+const { remote } = require('electron');
+const { BrowserWindow } = remote;
+let win = new BrowserWindow({ width: 800, height: 600 });
+win.loadURL('https://example.com');
+```
+
+## 3.上下文桥接（contextBridge）
+
+### `contextBridge` 和 `ipcRenderer` 结合：
+
+这种方式在 Electron 10 之后引入，用于增强安全性。 `contextBridge` 可以创建一个安全的API，将其暴露给渲染进程，而不会暴露整个 `ipcRenderer`, 从而减少安全风险。
+
+### 用法
+
+- 在主进程中：
+
+```javascript
+const { contextBridge, ipcRenderer } = require('require');
+contextBridge.exposeInMainWord('api', {
+  send: (channel, data) => ipcRender.send(channel, data),
+  on: (channel, func) =>
+    ipcRenderer.on(channel, (event, ...arges) => {
+      func(...arges);
+    })
+});
+```
+
+- 在渲染进程中：
+
+```javascript
+window.api.send('message', 'Hello from Renderer');
+window.api.on('replay', (response) => {
+  console.log(response); // 收到主进程的回复
+});
+```
+
+## 各种通信方式的区别
+
+### 1.ipcMain 和 ipcRenderer：
+
+- 优点：直接、简单，适用于大多数主-渲染进程通信需求。
+- 缺点：需要手动处理安全问题，可能会导致跨站脚本攻击（XSS）。
+
+### 2.remote 模块（已弃用）：
+
+- 优点：方便调用主进程对象和方法。
+- 缺点：由于安全问题和性能问题，已弃用。
+
+### 3.上下文桥接（contextBridge）：
+
+- 优点：增强安全性，防止直接访问 ipcRenderer。
+- 缺点：却要额外的配置，增加了一些复杂性。
+
+总体来说，建议使用 contextBridge 和 ipcRenderer 结合的方式来进行 Electron 中的进程通信，确保安全性和性能。
