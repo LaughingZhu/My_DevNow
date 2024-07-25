@@ -1,0 +1,88 @@
+---
+title: 'DevNow：一个好的开源博客是什么样子的？'
+desc: 'DevNow：一个好的开源博客是什么样子的？'
+publishDate: '2024-07-25 17:00:00'
+image: 'https://images.unsplash.com/photo-1506485338023-6ce5f36692df?q=80&w=3870&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
+category: 'devnow'
+author: 'LaughingZhu'
+tags: [Tech, News, Devnow]
+pin: true
+---
+
+## 1. 前言
+
+为什么会想着来做这样一个开源博客项目呢？
+
+原因为总结了几点：
+
+- 作为程序语言，怎么能没有自己的博客呢。
+- 用来沉淀自己的一些学习内容和记录一些技术文章。
+- 促进自己持续输出一些内容，来提高语言表达能力。
+- 个人属性吧，觉得有一个属于自己的平台，那真是，泰裤辣。
+
+其实陆陆续续写过很多个blog，去年基于 Nextjs 重构了一次 [blog](https://blog.laughingzhu.cn/)，大概是长这样，是参考一个博客的模版写的，当时觉得还挺不错的。
+
+![nextjs](https://cdn.laughingzhu.cn/DevNow/27691398de101e7b582713edc101b1c3-a869ab.png)
+
+那么今天介绍的开源项目 [DevNow 开源博客项目](https://github.com/LaughingZhu/DevNow) 又是在什么条件下做的呢。
+
+上个月初和一个大学同学在聊天的过程中聊到他正在找一个合适的开源项目来承载他的一个 读书笔记 项目，但是一直没有找到一个 UI、功能匹配度比较高的项目，然后我就说要不我来写一个开源出来，大家一起用。
+
+## 2. DevNow： 现代化开源博客项目
+
+**DevNow** 是一个现代化的、简约的开源技术博客项目。支持 Vercel 一键部署，支持评论、搜索等功能，欢迎大家提issue、star、fork使用。
+
+Github地址： https://github.com/LaughingZhu/DevNow
+
+目前已经把我博客的内容都迁移过来了，同时也承接着 weekly 内容平台，每周发布一些技术圈中热度比较高的内容。主要是技术相关的，可能会穿插一些其他的话题和一些开源项目介绍等。
+
+我的博客地址： https://www.laughingzhu.cn/
+
+![我的博客](https://cdn.laughingzhu.cn/DevNow/76a0cb95c51c3c45fccb09483aaad678-7482f4.png)
+
+## 3. 目前支持的功能
+
+- ✅ **适配移动端**
+- ✅ **SEO & OpenGraph**
+- ✅ **支持 Markdown & MDX**
+- ✅ **语法高亮**
+- ✅ **图片压缩**
+- ✅ **主题色**
+- ✅ **代码复制**
+- ✅ **支持 Sitemap**
+- ✅ **支持 RSS Feed 订阅**
+- ✅ **草稿模式**
+- ✅ **🔍文章搜索** （[借助DocSearch他实现](https://docsearch.algolia.com/docs/what-is-docsearch/) ）
+- ✅ **支持 Comments** ([Giscus](https://giscus.app/))
+- ✅ **支持分页**
+- ✅ **标注**
+- ✅ **媒体嵌入**（目前支持 Youtube、Twitter、Link、Vimeo）
+
+## 4. 技术栈
+
+- [Astro](https://astro.build/) : **Astro 是一个集多功能于一体的 Web 框架。**它内置包含了你构建网站所需的一切。还有数百个不同的[集成](https://astro.build/integrations/)和 [API 钩子](https://docs.astro.build/zh-cn/reference/integrations-reference/)可根据你的具体用例和需求定制你的项目。
+- **TypeScript**
+- **Tailwind CSS**
+- **Mdx** (大家在投稿或者写文章时，优先使用.mdx，格式和md一样，只不过.mdx对于上边提到的功能支持度是最高的)。
+- **Vercel** 一键部署
+
+## 5. 为什么说是现代化的开源博客项目？
+
+我觉得这个话题可能是比较开放的吧，简单聊下我的想法：
+
+- **现代化简洁的 UI** ：我是从事前端开发的程序员，所以 UI 在我开来很重要，DevNow 整体的 UI 借鉴了一些比较好的UI，整体还是比较简洁的。
+- **技术层面** ：基本上使用了近几年比较火的一些技术栈，整个项目还是有一些值得学习的内容。
+- **扩展性** ：整个项目是基于 Astro 来开发的，Astro 可以随意扩展 UI 框架集成，包括 [React](https://react.dev/)、[Preact](https://preactjs.com/)、[Svelte](https://svelte.dev/)、[Vue](https://vuejs.org/)、[SolidJS](https://www.solidjs.com/)、[AlpineJS](https://alpinejs.dev/) 和 [Lit](https://lit.dev/)。有更丰富的扩展性。
+- **开源性** ：基本上所有的功能模块都是基于一些开源项目来构建的，这样可以让整个项目的扩展性也比较高。不过这里也有一些弊端：比如基于 giscus 的评论模块，需要用户自己去配置一些内容，在易用性上还是差了一点。
+
+## 6. 聊下这个项目带来的收货
+
+从上线到现在，刚刚把基础的功能模块都陆陆续续迭代完了，大家可以fork下体验体验，欢迎提issue和反馈。
+
+由于第一次写开源项目，所以开始的项目中还是有很多硬编码的代码，导致用户在改起来内容的时候需要进入到项目中来找到对应的模块修改。这里我的朋友给了我很多建议，目前的版本已经参看一些开源项目进行优化了几版，基本上都可以在配置文件中来修改项目的基础信息了。这个也算是开源项目带来的收获吧，开发上思想的转变，让项目具备更好的 **灵活性** 和 **扩展性** 。
+
+## 7.总结
+
+目前 DevNow 作为一个开源博客项目还是很年轻的，需要大家来提供些好的建议和使用反馈，也欢迎👏🏻来投稿一些优质的内容和新闻。
+
+既然都读到这里了，那就给俺点个star吧。
