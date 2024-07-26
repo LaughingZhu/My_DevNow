@@ -29,9 +29,9 @@ dependencies:
   '@fontsource/inter':
     specifier: ^5.0.18
     version: 5.0.18
-  '@fontsource/lxgw-wenkai':
-    specifier: ^5.0.2
-    version: 5.0.2
+  '@fontsource/lxgw-wenkai-tc':
+    specifier: ^5.0.1
+    version: 5.0.1
   '@react-three/drei':
     specifier: ^9.108.3
     version: 9.108.3(@react-three/fiber@8.16.8)(@types/react@18.3.3)(@types/three@0.166.0)(react-dom@18.3.1)(react@18.3.1)(three@0.166.1)
@@ -1377,8 +1377,8 @@ packages:
     resolution: {integrity: sha512-YCsoYPTcs713sI7tLtxaPrIhXAXvEetGg5Ry02ivA8qUOb3fQHojbK/X9HLD5OOKvFUNR2Ynkwb1kR1hVKQHpw==}
     dev: false
 
-  /@fontsource/lxgw-wenkai@5.0.2:
-    resolution: {integrity: sha512-Hy4aHcjlfvEgwU9bNFgxbmEN8erP//qN4uP1BAsBwQXMQG7iI9bG+plert6Qvy1tsfMxhC/Oiqi4XLsEGV+cOA==}
+  /@fontsource/lxgw-wenkai-tc@5.0.1:
+    resolution: {integrity: sha512-heD7uWNDguwfsW9MeiVX1WSF0am8TGA29fdhs+QfEBBHgs9c4Dikc6Hr8Y35h1A93LMVLVITfe2LNYsPT9gU1w==}
     dev: false
 
   /@img/sharp-darwin-arm64@0.33.4:
