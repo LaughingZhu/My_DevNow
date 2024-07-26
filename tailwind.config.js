@@ -13,9 +13,6 @@ module.exports = {
       }
     },
     extend: {
-      fontFamily: {
-        sans: ['lxgw-wenkai', ...defaultTheme.fontFamily.sans]
-      },
       gridTemplateColumns: {
         list: 'repeat(auto-fill, minmax(400px, max-content))'
       },
