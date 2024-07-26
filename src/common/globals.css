@@ -95,7 +95,7 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: LXGW WenKai Tc;
+    font-family: LXGW WenKai TC;
   }
 
   html .shiki {
