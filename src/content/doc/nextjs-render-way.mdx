@@ -1,0 +1,275 @@
+---
+title: 'Nextjs 渲染方式及区别'
+desc: 'Nextjs 渲染方式及区别。'
+publishDate: '2024-07-31 15:39:36'
+image: 'https://cdn.laughingzhu.cn/DevNow/dab81c5199be6bf74a485f6b4494b635-c2c5bb.png'
+category: 'blog'
+author: 'LaughingZhu'
+tags: [Blog, LaughingZhu]
+---
+
+## 1. 前言
+
+正好有时间，抽空整理下这些琐碎的知识点，避免每次都查来查去的。这篇文章主要是通过几个示例来将下 `Nextjs` 下的一些渲染模式和区别，这些原理内容基本通用，可以扩展到其他的一些支持服务端渲染（ssr）的前端框架。可能在实现上有些差异，但是原理基本相同。
+
+我们常见的渲染方式：
+
+- `SSG（Static Site Generation）` ：静态站点生成
+- `SSR（Server Site Rendering）` ：服务端渲染
+- `ISR（Incremental Static Regeneration）` ：静态增量生成
+- `CSR（Client Site Rendering）` ：客户端渲染
+
+在 Next.js 中想要使用某种渲染方式，例如我想指定 SSR 或是 SSG，并不是说直接在某个配置文件中改一个配置就可以的，而是我们在页面中使用了一些相关的 API，而 Next.js 在打包时检测到了才会进行相应的页面构建策略。
+
+## 2. 预渲染
+
+Nextjs 是一个基于React 的服务端渲染框架，主要特点是很好的支持预渲染，提供很好的SEO和扩展性。默认情况下，Nextjs 会预渲染每个页面。这意味着 Nextjs 会将网站的所有页面提前生成静态 HTML 文件保存下来。当用户访问网站是，服务器会返回预渲染好的静态文件，不需要使用JavaScript 动态生成网页内容，这样就会使得网站 SEO 和 FCP 得到提示。
+
+在直接使用 React 时，页面的渲染是完全由 JS 执行的，在 JS 未渲染完成前，页面中可能只有类似 `<div id=''></div>` 的一个容器标签，当 JavaScript 文件被加载并执行时，它们会根据代码逻辑和数据来生成最终的 HTML 标记和页面内容，并将其插入到页面中的容器标签中。
+
+:::tip[预渲染的优势]
+预渲染的目的是可以带来更好的性能以及 SEO。
+
+1. **可缓存**：生成的静态 HTML 文件可以在 CDN 中缓存。
+2. **体验好**：首次加载页面时可以直接返回 HTML，减少 `FCP`， 再加载 JS 文件，白屏时间更短。
+3. **提升 SEO**：更多的可读性的 HTML 内容可以提高网站的可索引性和可识别性。相比之下，传统的方式是使用 JavaScript 动态生成网页内容，而爬虫并不总是能够正确地读取和理解 JavaScript。
+   :::
+
+预渲染一般分为两种形式：SSR 和 SSG。
+
+- SSG：在构建打包时生成 HTML。
+- SSR：在每次请求时动态生成 HTML。
+
+Nex.js 官方更加推荐使用 SSG，因为 SSG 静态生成的页面可以由 CDN 缓存，无需额外配置，相比之下性能更好。但是在有些场景中你不得不使用 SSR，例如一些需要 **实时更新** 和 **动态生成内容** 的应用程序，例如社交媒体应用、在线游戏等。这些应用会提供动态内容和实时交互功能，因此必须在服务器端动态生成页面。
+
+关于 SSG 和 SSR 的选择最终是取决于 **你的页面能不能在用户发送请求前就展示出来？**
+
+### 2.1 SSG - 静态站点生成
+
+一般有三种情况会命中SSG：
+
+1. 纯静态页面，不需要依赖外部数据
+2. 页面的 **内容** 依赖外部数据
+3. 页面的 **路径** 依赖外部数据
+
+#### 2.1.1 不依赖外部数据
+
+```js
+
+function About() {
+  return <div>About</div>
+}
+​
+export default About
+
+```
+
+这种情况最简单，Next.js 会在打包时直接生成一个静态的 HTML。
+
+#### 2.1.2 页面的内容依赖外部数据
+
+```js
+
+export default function Blog({ posts }) {
+  // 渲染文章...
+}
+​
+// 这个函数会在 build 时接收请求
+export async function getStaticProps() {
+  // 请求 API 获取文章数据
+  const res = await fetch('https://.../posts')
+  const posts = await res.json()
+​
+  // 在构建时，Blog 组件可以接收到 posts 这个 props
+  return {
+    props: {
+      posts,
+    },
+  }
+}
+
+```
+
+为了能够在预渲染的时候拿到外部的数据，我们可以在定义组件的那个文件中暴露一个异步函数 `getStaticProps` ，在打包页面时 Next.js 会先执行 `getStaticProps` 中的操作，例如发送请求，数据处理之类的。
+
+然后我们可以返回一个对象，其中 `props` 字段的值会在渲染组件时作为 `props` 传入，这样就实现了构建时从外部获取数据。
+
+#### 2.1.3 页面的路径依赖外部数据
+
+Next.js 的路由是由文件系统驱动的，每个页面都对应着一个文件，这个文件的路径就是这个页面的路由路径。例如，`pages/index.js` 对应着根路径 `/`，而 `pages/about.js` 对应着 `/about` 路径。
+
+当然不是所有的页面都是固定路由的，而动态路由就是一种可以基于 URL 参数动态生成页面的路由。例如，你可以创建一个 `/posts/[id]` 的页面路由，用于显示具有不同 `id` 值的文章详情页面。
+
+而如果我们使用了动态路由，例如前面提到的文章 `id` ，那么 Next.js 如何得到我们有哪些文章 `id` 以实现预渲染呢？
+
+```js
+
+// 这个函数在 build 时会调用
+export async function getStaticPaths() {
+  // 请求 API 获取数据
+  const res = await fetch('https://.../posts')
+  const posts = await res.json()
+​
+  // 基于 posts 获取我们想要预渲染的路径
+  const paths = posts.map((post) => ({
+    params: { id: post.id },
+  }))
+​
+  // 在 build 时我们只会预渲染 paths 数组中的路径
+  // { fallback: false } 意为其他的路由都会返回 404
+  return { paths, fallback: false }
+}
+
+```
+
+我们可以在定义组件的那个文件中再暴露一个异步函数 `getStaticPaths` ，这个函数可以返回一个包含 `paths` 和 `fallback` 属性的对象，`paths` 是一个包含了所有动态路由路径的数组，它决定了哪些路径将被预渲染。而 `fallback` 则表示访问还没有生成 html 的路径时，要采取怎么样的策略，它存在三种情况：
+
+- `false`：访问任何在 `getStaticPaths()` 函数中未返回的路径都会响应 404 页面。
+- `true`：build 时未生成的路径不会返回 404 页面。而是在第一次请求时进行 **SSR** 并返回生成的 HTML。这个生成的 HTML 会被缓存，也就是说你访问这个路径时，即便对应的数据已经更新了还是会返回原本的页面，直到缓存过期重新生成 HTML。
+- `'blocking'`：`'blocking'` 策略与设置为 `true` 时相同，不同点在于设置为 `true` 时，我们会直接进入访问的路径，并同时执行 `getStaticProps` ，并且可以通过 `router.isFallback` 判断`getStaticProps` 是否已经执行完成，而 `'blocking'` 策略则会先执行 `getStaticProps` ，直到执行完成才会进入新的页面。也就是同步与异步的关系。
+
+虽然预渲染这么方便，将我的每个页面都生成静态文件了，那如果页面更新了怎么办呢？难道我需要执行 build 重新生成所有页面嘛？这里就需要引入 **ISR** 的概念了。
+
+### 2.2 ISR - 静态增量生成
+
+**ISR**（Incremental Static Regeneration） 是一种在静态站点生成过程中，增量更新部分页面的技术。传统的静态网站生成方式需要每次完全重新生成全部页面，这在网站内容变化频繁的情况下可能会导致生成时间较长，同时也可能会降低网站的性能。
+
+ISR 的思想是只 **重新生成需要更新部分页面**。这样可以显著减少生成时间和资源占用，并且能够提高网站的响应速度。当用户请求一个需要更新的页面时，ISR 会在后台自动重新生成该页面，然后将其缓存，以便下一次请求时可以快速响应。
+
+要在 Next.js 中开启 ISR ，只需要在前面介绍的 `getStaticProps` 函数中返回一个 `revalidate` 属性，下面放一个官方的示例：
+
+```js
+
+function Blog({ posts }) {
+  return (
+    <ul>
+      {posts.map((post) => (
+        <li key={post.id}>{post.title}</li>
+      ))}
+    </ul>
+  )
+}
+​
+// 这个方法会在服务端渲染或者 build 时被调用
+// 当使用了 serverless 函数、开启 revalidate 并且接受到新的请求时也会被重新调用
+export async function getStaticProps() {
+  const res = await fetch('https://.../posts')
+  const posts = await res.json()
+​
+  return {
+    props: {
+      posts,
+    },
+
+    // Next 将会尝试重新生成页面:
+    // - 接受到新的请求
+    // - 每隔最多十秒钟
+    revalidate: 10, // 单位为秒
+  }
+}
+​
+// 这个方法会在服务端渲染或者 build 时被调用
+// 当使用了 serverless 函数该路径还没有被生成过就会被重新调用
+export async function getStaticPaths() {
+  const res = await fetch('https://.../posts')
+  const posts = await res.json()
+​
+  // 基于 posts 获取我们想要预渲染的路径
+  const paths = posts.map((post) => ({
+    params: { id: post.id },
+  }))
+​
+  // 在 build 时，我们将只预渲染 paths 中的路径
+  // { fallback: 'blocking' } 在页面不存在时按需进行服务端渲染。
+  return { paths, fallback: 'blocking' }
+}
+​
+export default Blog
+
+```
+
+ISR 的实现方式是将某些页面标记为可 ISR 页面。这些页面在生成时与 SSG 页面相同，但它们还有一个“revalidate”（再生成时间） 。这个时间告诉 Next.js 何时需要重新生成页面。
+
+例如，假设我们需要构建一个新闻网站，希望能在首页上显示最新的新闻文章。在 Next.js 中，我们就可以将首页标记为 ISR 页面，并设置重新生成时间为 10 秒钟。这意味着，Next.js 将在访问首页时，返回上一次生成的静态页面，同时在后台开始重新生成新的页面。10 秒后，当新页面生成完毕后，Next.js 会将新页面替换旧页面，并提供给用户。
+
+所以关于增量生成我们也可以简单的总结为：“传统的预渲染如果需要更新内容就得将全部页面重新生成 HTML，而 **增量生成** 允许我们单独设置某一些页面重新生成“，这样就能节省很多不必要的性能开支了。
+
+### 2.3 SSR - 服务端渲染
+
+在 Next.js 中，如果启用了 SSR，那么每次的每次请求都会重新生成页面。想要开启 SSR，我们可以在定义组件的那个文件中暴露一个异步函数 `getServerSideProps`，这个方法类似于 `getStaticProps` ，只是执行的时机不同， `getServerSideProps` 会在每次页面接受请求时都调用。
+
+根据 `getServerSideProps` 的调用时机，我们可以知道这个方法适用于展示需要经常更新的数据。下面放个官方例子：
+
+```js
+
+export default function Page({ data }) {
+  // 渲染数据...
+}
+​
+// 这个方法每次请求时都会调用
+export async function getServerSideProps() {
+  // 从外部 API 获取数据
+  const res = await fetch(`https://.../data`)
+  const data = await res.json()
+​
+  // 通过 props 向组件内传入数据
+  return { props: { data } }
+}
+
+```
+
+除了调用时机外，`getServerSideProps` 与 `getStaticProps` 并无二致，因此还是很好理解的。
+
+## 3. 客户端渲染 - CSR
+
+Next.js 的构建产物是需要启动一个服务才能访问的，而如果我们有特殊需求，不想要让前端单独跑一个服务，而是直接打包成一个静态文件，直接访问指定的 url 去获取资源，那么你就可以使用 Next.js 的 **客户端渲染 + next export** 去实现。
+
+在 Next.js 中想要使用客户端渲染也很简单，只要上述的这些 API ，例如 `getStaticProps` 、`getServerSideProps` ... 我们都没有使用，数据都是通过在组件内部使用 axios 或者 fetch 去发送请求获取并渲染的，那么我们使用的就是纯客户端渲染了，与直接使用 Vue 或 React 并无二致。
+
+但即便你的每一个页面都是使用的客户端渲染，在执行 build 时，Next.js 还是会为你打包成一个需要持续运行的 Node.js 服务，而不是直接打包为一个静态文件。
+
+想要导出为静态文件，需要使用单独的打包方式，那就是静态 HTML 导出。
+
+### 3.1 静态 HTML 导出
+
+Next.js 可用于生成静态应用程序，可以实现在浏览器中使用 React 而无需 Node.js 服务器。就可以使用 `next export` 命令去将你的站点构建为一个静态的文件。
+
+首先更新 `next.config.js` 中的 `output` 为 `export` :
+
+```js
+/**
+ * @type {import('next').NextConfig}
+ */
+const nextConfig = {
+  output: 'export'
+
+  // Optional: Change links `/me` -> `/me/` and emit `/me.html` -> `/me/index.html`
+  // trailingSlash: true,
+
+  // Optional: Prevent automatic `/me` -> `/me/`, instead preserve `href`
+  // skipTrailingSlashRedirect: true,
+
+  // Optional: Change the output directory `out` -> `dist`
+  // distDir: 'dist',
+};
+
+module.exports = nextConfig;
+```
+
+运行后`next build`，Next.js 将生成一个`out`文件夹，其中包含应用程序的 HTML/CSS/JS 资源。
+
+:::danger[注意]
+这个功能是有很多限制的，一旦你启动了以下 Next.js 的特性，你就无法打包为纯静态产物：
+
+- [Dynamic Routes](https://nextjs.org/docs/app/building-your-application/routing/dynamic-routes) with `dynamicParams: true`
+- [Dynamic Routes](https://nextjs.org/docs/app/building-your-application/routing/dynamic-routes) without `generateStaticParams()`
+- [Route Handlers](https://nextjs.org/docs/app/building-your-application/routing/route-handlers) that rely on Request
+- [Cookies](https://nextjs.org/docs/app/api-reference/functions/cookies)
+- [Rewrites](https://nextjs.org/docs/app/api-reference/next-config-js/rewrites)
+- [Redirects](https://nextjs.org/docs/app/api-reference/next-config-js/redirects)
+- [Headers](https://nextjs.org/docs/app/api-reference/next-config-js/headers)
+- [Middleware](https://nextjs.org/docs/app/building-your-application/routing/middleware)
+- [Incremental Static Regeneration](https://nextjs.org/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating)
+- [Image Optimization](https://nextjs.org/docs/app/building-your-application/optimizing/images) with the default `loader`
+- [Draft Mode](https://nextjs.org/docs/app/building-your-application/configuring/draft-mode)
+  :::
