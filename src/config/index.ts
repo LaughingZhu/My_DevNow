@@ -12,7 +12,7 @@ export const DEFAULT_GRID_COLUMNS: { [key: number]: string } = {
 
 export default {
   /** 网站配置信息 start */
-  title: 'DebNow',
+  title: 'DevNow',
   author: 'LaughingZhu',
   description: 'DevNow — 开发技术周刊',
   keywords: 'DevNow 开源技术博客项目。目前承载着一个技术新闻、开发weekly，每周一上午发布~',
