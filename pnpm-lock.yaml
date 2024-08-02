@@ -101,6 +101,9 @@ dependencies:
   react-dom:
     specifier: ^18.3.1
     version: 18.3.1(react@18.3.1)
+  react-icons:
+    specifier: ^5.2.1
+    version: 5.2.1(react@18.3.1)
   reading-time:
     specifier: ^1.5.0
     version: 1.5.0
@@ -6786,6 +6789,7 @@ packages:
       scheduler: 0.23.2
     dev: false
 
+<<<<<<< HEAD
   /react-dropzone@12.1.0(react@18.3.1):
     resolution: {integrity: sha512-iBYHA1rbopIvtzokEX4QubO6qk5IF/x3BtKGu74rF2JkQDXnwC4uO/lHKpaw4PJIV6iIAYOlwLv2FpiGyqHNog==}
     engines: {node: '>= 10.13'}
@@ -6813,6 +6817,16 @@ packages:
       scheduler: 0.21.0
     dev: false
 
+=======
+  /react-icons@5.2.1(react@18.3.1):
+    resolution: {integrity: sha512-zdbW5GstTzXaVKvGSyTaBalt7HSfuK5ovrzlpyiWHAFXndXTdd/1hdDHI4xBM1Mn7YriT6aqESucFl9kEXzrdw==}
+    peerDependencies:
+      react: '*'
+    dependencies:
+      react: 18.3.1
+    dev: false
+
+>>>>>>> upstream/main
   /react-refresh@0.14.2:
     resolution: {integrity: sha512-jCvmsr+1IUSMUyzOkRcvnVbX3ZYC6g9TDrDbFuFmRDq7PD4yaGbLKNQL6k2jnArV8hjYxh7hVhAZB6s9HDGpZA==}
     engines: {node: '>=0.10.0'}
