@@ -190,7 +190,7 @@ if (current !== null) {
 从函数名也可以看出来这是 Reconciler 模块的互信部分。它的作用如下：
 
 - 对于 mount 的组件，他会创建新的 子Fiber节点
-- 对于 update 的组件，他会将唐倩组件与该组件在上次更新是对应的 Fiber节点 比较（也就是俗称的Diff算法），将比较更新的结果生成新 Fiber节点
+- 对于 update 的组件，他会将当前组件与该组件在上次更新是对应的 Fiber节点 比较（也就是俗称的Diff算法），将比较更新的结果生成新 Fiber节点
 
 ```javascript
 export function reconcileChildren(

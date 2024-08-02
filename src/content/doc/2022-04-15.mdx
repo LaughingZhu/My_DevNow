@@ -242,11 +242,12 @@ const Child = memo((props: { userInfo: { name: string, sex: string } }) => {
 如图，当点击父组件count时，每次子组件都重新渲染了，但其实子组件接受的参数userInfo内容是没有变更的
 **分析原因**跟直接传一个函数是一样的：
 
-```
+:::tip[注意]
+
 - 点击父组件按钮，触发父组件重新渲染；
-- 父组件渲染，const userInfo = { name: 'LaughingZhu', sex: 'boy' }; 一行会重新生成一个新对象，导致传递给子组件的userInfo属性值变化（由于是**引用类型**，这里指userInfo在内存中的**指针**指向变了），进而导致子组件重新渲染。
-- 注意：如果使用**useState解构**的userInfo，子组件不会重新渲染，因为**解构**出来的是一个**memoized值**。
-```
+- 父组件渲染，`const userInfo = { name: 'LaughingZhu', sex: 'boy' }` ; 一行会重新生成一个新对象，导致传递给子组件的userInfo属性值变化（由于是**引用类型**，这里指userInfo在内存中的**指针**指向变了），进而导致子组件重新渲染。
+- 注意：如果使用 **useState解构** 的userInfo，子组件不会重新渲染，因为 **解构** 出来的是一个 **memoized值** 。
+  :::
 
 ### 解决方案：
 
