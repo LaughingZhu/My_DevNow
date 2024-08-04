@@ -7,6 +7,7 @@ import ThemeSwitch from '@components/ThemeSwitch.astro';
 import { checkImageUrl } from '@utils/all';
 import { SEO } from 'astro-seo';
 import '@fontsource/lxgw-wenkai-tc';
+import config from '@config/index';
 
 const PUBLIC_GOOGLE_ANALYTICS_ID = import.meta.env.PUBLIC_GOOGLE_ANALYTICS_ID;
 interface Props {
@@ -14,6 +15,7 @@ interface Props {
   desc?: string;
   image?: string;
 }
+const { title: DEFAULT_TITLE, show_copyright_info, foot_site_info } = config;
 
 const { title, desc = 'DevNow — 开发技术周刊', image = '/logo.png' } = Astro.props;
 const resolvedOGImage = checkImageUrl(image, Astro.site);
@@ -66,13 +68,14 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site).toString();
         }
       }}
     />
+    <ThemeSwitch />
   </head>
 
-  <body class='h-screen flex flex-col items-center'>
-    <ThemeSwitch />
+  <body class='h-screen flex flex-col items-center bg-black'>
     <Header />
     <slot />
-    <Footer />
+    {(show_copyright_info || !!foot_site_info) && <Footer />}
+
     <style is:global>
       /* Improve Page speed */
       /* https://css-tricks.com/almanac/properties/c/content-visibility/ */
