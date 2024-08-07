@@ -1,0 +1,188 @@
+---
+title: 'React Lazy 的实现原理'
+desc: 'React Lazy 的实现原理'
+publishDate: '2024-08-07 16:39:36'
+image: 'https://cdn.laughingzhu.cn/DevNow/768c2d3cc5b65154103e971083392341-c50fd8.png'
+category: 'blog'
+author: 'LaughingZhu'
+tags: [Blog, React]
+---
+
+[React.lazy](https://zh-hans.react.dev/reference/react/lazy) 是 React 16.6 引入的一个特性，用于 **代码分割（Code Splitting）** 和 **按需加载（Lazy Loading）** 组件。它允许你定义一个动态加载的组件，这个组件只有在需要的时候才会被加载，从而减少初始加载时间，优化 [FCP](https://web.dev/articles/fcp?hl=zh-cn) ， 提高应用性能。
+
+## React.lazy 的实现原理
+
+`React.lazy` 的核心是使用 `JavaScript` 的动态 [import()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import) 语法，这种语法会返回一个 `Promise` ，并且在需要的时候才会加载模块。以下是 `React.lazy` 的基本实现原理：
+
+### 1. 动态导入组件：
+
+`React.lazy` 接受一个函数作为参数，这个函数使用 [import()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import) 语法动态导入组件。例如：
+
+```js
+const LazyComponent = React.lazy(() => import('./MyComponent'));
+```
+
+### 2. 返回一个 React.Component：
+
+`React.lazy` 返回一个新的 React 组件，这个组件在内部管理着加载状态。当组件第一次被渲染时，它会触发 `import()` ，并在加载完成后渲染实际的组件。
+
+### 3. Suspense 组件：
+
+为了处理加载状态， `React` 引入了 `Suspense` 组件。 `Suspense` 允许你定义在组件加载过程中显示的占位内容（例如一个加载指示器）。当动态导入的组件正在加载时， `Suspense` 会显示其 `fallback` 属性中定义的内容：
+
+```js
+<Suspense fallback={<div>Loading...</div>}>
+  <LazyComponent />
+</Suspense>
+```
+
+### 4. 完整示例:
+
+```js
+import React, { Suspense } from 'react';
+const LazyComponent = React.lazy(() => import('./MyComponent'));
+
+function App() {
+  return (
+    <div>
+      <Suspense fallback={<div>Loading...</div>}>
+        <LazyComponent />
+      </Suspense>
+    </div>
+  );
+}
+
+export default App;
+```
+
+## 工作机制
+
+- 初始渲染：
+
+当 `LazyComponent` 首次被渲染时，`React.lazy` 会调用传入的函数 `() => import('./MyComponent')` 。
+这个函数返回一个 `Promise` ，当 `Promise` 解析时，它会返回实际的组件模块。
+
+- 加载状态管理：
+
+在 `Promise` 解析之前， `React.lazy` 会使组件处于 `"pending"` 状态。
+`Suspense` 组件会检测到这个 `"pending"` 状态，并显示 `fallback` 内容（如加载指示器）。
+
+- 组件加载完成：
+
+一旦 `Promise` 解析，`React.lazy` 会将实际的组件渲染出来。
+`Suspense` 组件会停止显示 `fallback` 内容，并显示加载完成的组件。
+
+## 构建工具的作用
+
+构建工具（例如 Webpack、Rollup 等）在处理动态 import() 时会自动进行代码分割，将动态导入的模块打包成单独的文件（chunk）。当这些模块被请求时，浏览器会按需加载对应的 chunk。
+
+### Webpack 示例
+
+Webpack 是一个常用的 JavaScript 模块打包工具，它对动态 import() 提供了良好的支持。以下是 Webpack 如何处理动态 import() 的示例：
+
+1. 配置 Webpack：Webpack 默认支持动态 import()，你只需要确保项目的 Webpack 配置正确。
+
+2. 代码分割：当 Webpack 解析到动态 import() 时，它会自动创建一个新的 chunk 文件。例如：
+
+```js
+// src/App.js
+import React, { Suspense } from 'react';
+
+const LazyComponent = React.lazy(() => import('./LazyComponent'));
+
+function App() {
+  return (
+    <div>
+      <Suspense fallback={<div>Loading...</div>}>
+        <LazyComponent />
+      </Suspense>
+    </div>
+  );
+}
+export default App;
+```
+
+编译后，Webpack 会生成一个新的 chunk 文件（例如 LazyComponent.chunk.js），这个文件只有在 LazyComponent 被使用时才会被加载。
+
+## 总结
+
+- 动态 import()：ES6 的动态 import() 方法允许在运行时按需加载模块，返回一个 Promise。
+- React.lazy：利用动态 import() 方法，React.lazy 可以定义懒加载组件。
+- Suspense：使用 Suspense 组件处理懒加载组件的加载状态，显示占位内容。
+- 构建工具：如 Webpack 等构建工具会自动进行代码分割，将动态导入的模块打包成单独的 chunk 文件，并在需要时按需加载。
+
+通过这些技术的结合，React 提供了一种简单而强大的方式来实现代码分割和按需加载，从而显著提升应用性能。
+
+:::tip[扩展]
+不使用 `Suspense` 也可以实现懒加载，只是 `Suspense` 提供了一种更简洁、更优雅的方式来处理加载状态和占位内容。如果不使用 `Suspense` ，你需要手动处理加载状态和错误边界。不使用 Suspense 的懒加载示例：
+
+```js
+
+mport React, { Component } from 'react';
+
+class LazyComponentLoader extends Component {
+  state = {
+    component: null,
+    loading: true,
+    error: null,
+  };
+
+  componentDidMount() {
+    this.loadComponent();
+  }
+
+  loadComponent() {
+    import('./LazyComponent')
+      .then(module => {
+        this.setState({ component: module.default, loading: false });
+      })
+      .catch(error => {
+        this.setState({ error, loading: false });
+      });
+  }
+
+  render() {
+    const { component: LoadedComponent, loading, error } = this.state;
+
+    if (loading) {
+      return <div>Loading...</div>;
+    }
+
+    if (error) {
+      return <div>Error loading component</div>;
+    }
+
+    return LoadedComponent ? <LoadedComponent /> : null;
+  }
+}
+
+export default LazyComponentLoader;
+```
+
+以下是 **错误** 的写法：
+
+```js
+import { lazy } from 'react';
+
+function Editor() {
+  // 🔴 Bad: 这将导致在重新渲染时重置所有状态
+  const MarkdownPreview = lazy(() => import('./MarkdownPreview.js'));
+  // ...
+}
+```
+
+以下是 **正确** 的写法：
+
+```js
+import { lazy } from 'react';
+
+// ✅ Good: 将 lazy 组件声明在组件外部
+const MarkdownPreview = lazy(() => import('./MarkdownPreview.js'));
+
+function Editor() {
+  // ...
+}
+```
+
+核心思想都是利用 ES6 的动态 import() 方法来实现懒加载。Suspense 只是为懒加载提供了一个更好的用户体验和更简洁的实现方式。
+:::

@@ -36,7 +36,7 @@ tags: [Blog, React]
 
 ## 3.Flags 冒泡
 
-当更新流程进过 Reconciler 后，会得到一棵 `WipFIberTree`，其中部分 `fiberNode` 被标记 flags。`Renderer` 需要对 ”被标记的 fiberNode 对应的DOM 元素“ 执行 ”flags 对应的 DOM 操作“。那么如何高效的找到这些散落在 `WipFiberTree` 各处的”被标记的 `fiberNode` “呢？这就是 flags 冒泡作用。
+当更新流程经过 Reconciler 后，会得到一棵 `WipFIberTree`，其中部分 `fiberNode` 被标记 flags。`Renderer` 需要对 ”被标记的 fiberNode 对应的DOM 元素“ 执行 ”flags 对应的 DOM 操作“。那么如何高效的找到这些散落在 `WipFiberTree` 各处的”被标记的 `fiberNode` “呢？这就是 flags 冒泡作用。
 
 ### v16 Effects List
 
